@@ -1,0 +1,39 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-brand-navy: #FAFAFA;
+  --color-brand-dark: #0A0A0A;
+  --color-brand-blue: #000000;
+  --color-status-success: #000000;
+  --color-status-warning: #737373;
+  --color-status-danger: #404040;
+  --color-surface: #FAFAFA;
+
+  --font-sans: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+body {
+  background-color: #FAFAFA;
+  color: #0A0A0A;
+  font-family: var(--font-sans);
+  min-height: 100vh;
+}
+
+/* Custom Scan line animation (White Monochrome Glow) */
+@keyframes scan-line {
+  0% { top: 0%; opacity: 0.8; }
+  50% { opacity: 1; }
+  100% { top: 100%; opacity: 0.8; }
+}
+
+.animate-scan-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #FFFFFF, transparent);
+  box-shadow: 0 0 10px #FFFFFF;
+  animation: scan-line 2.5s ease-in-out infinite;
+}

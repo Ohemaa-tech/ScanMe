@@ -1,0 +1,91 @@
+# ===========================
+# Node / Frontend
+# ===========================
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sw?
+
+# Environment variables (never commit secrets)
+.env
+.env.local
+.env.*.local
+
+# ===========================
+# .NET / Backend
+# ===========================
+# Build outputs
+[Dd]ebug/
+[Rr]elease/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# NuGet
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# MSBuild
+*.user
+*.userosscache
+*.sln.docstates
+
+# Visual Studio / Rider
+.vs/
+.vscode/
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.VisualState.xml
+TestResult.xml
+*.cachefile
+*.VC.db
+*.VC.VC.opendb
+
+# SQLite dev database
+*.db
+*.db-shm
+*.db-wal
+
+# Entity Framework Core Migrations (optional - keep if you want them tracked)
+# POS.Infrastructure/Migrations/
+
+# dotnet publish output
+publish/
+
+# OS
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
