@@ -1,7 +1,17 @@
 import React from 'react';
-import { Search, Settings, User } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Search, Settings, User, LogOut } from 'lucide-react';
+import { useAuthStore } from '../store/authStore';
 
 export default function Header({ searchInput, setSearchInput }) {
+  const navigate = useNavigate();
+  const { user, logout } = useAuthStore();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
   return (
     <header className="h-14 bg-white text-slate-900 border-b border-neutral-200 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-40 shadow-xs">
       {/* Left: Brand Logo & Title */}
@@ -27,7 +37,7 @@ export default function Header({ searchInput, setSearchInput }) {
       </div>
 
       {/* Right: Status Indicator & User Menu */}
-      <div className="flex items-center gap-3 sm:gap-4">
+      <div className="flex items-center gap-2 sm:gap-3">
         {/* Terminal Status Badge */}
         <div className="hidden sm:flex items-center gap-2 bg-neutral-100 border border-neutral-200 px-3 py-1 rounded-full text-xs text-neutral-700">
           <span className="relative flex h-2 w-2">
@@ -47,8 +57,21 @@ export default function Header({ searchInput, setSearchInput }) {
           <div className="w-7 h-7 rounded-full bg-black flex items-center justify-center text-white border border-neutral-300">
             <User className="w-4 h-4" />
           </div>
-          <span className="hidden xl:inline text-xs font-bold text-black">Store Owner</span>
+          <div className="hidden xl:flex flex-col text-left">
+            <span className="text-xs font-bold text-black leading-none">{user?.fullName || 'Store Owner'}</span>
+            <span className="text-[10px] text-neutral-500 font-medium">{user?.role || 'Owner'}</span>
+          </div>
         </div>
+
+        {/* Logout Button */}
+        <button
+          onClick={handleLogout}
+          title="Logout"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 font-bold text-xs transition-all border border-red-200/60"
+        >
+          <LogOut className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Logout</span>
+        </button>
       </div>
     </header>
   );

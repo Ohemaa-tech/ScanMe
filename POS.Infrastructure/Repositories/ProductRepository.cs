@@ -57,6 +57,14 @@ namespace POS.Infrastructure.Repositories
                 .FirstOrDefaultAsync(pu => pu.Barcode == barcode && pu.Product!.IsActive);
         }
 
+        public async Task<ProductUnit?> GetProductUnitByIdAsync(int unitId)
+        {
+            return await _context.ProductUnits
+                .Include(pu => pu.Product)
+                    .ThenInclude(p => p!.Inventory)
+                .FirstOrDefaultAsync(pu => pu.Id == unitId && pu.Product!.IsActive);
+        }
+
         public async Task<Product> CreateProductAsync(Product product)
         {
             product.CreatedAt = DateTime.UtcNow;

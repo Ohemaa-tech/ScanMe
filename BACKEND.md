@@ -370,20 +370,20 @@ builder.Services.AddAuthorization(options => {
 - [x] `ProductsController` with automated lookup endpoint (`/lookup-external/{barcode}`) and CRUD guarded by `Owner` role
 
 ### PHASE 2 — Dual-Unit Sales Processing & Inventory Restocking
-- [ ] `SaleService` with packaging unit conversion factor logic
-- [ ] Stock verification & atomic base unit decrement in transaction
-- [ ] `SalesController` accessible to both Workers and Owners
-- [ ] `InventoryService` restocking logic with bulk package conversion (Owner only)
+- [x] `SaleService` with packaging unit conversion factor logic
+- [x] Stock verification & atomic base unit decrement in transaction
+- [x] `SalesController` accessible to both Workers and Owners
+- [x] `InventoryService` restocking logic with bulk package conversion (Owner only)
 
 ### PHASE 3 — Alert System & RBAC Enforcement Verification
-- [ ] `AlertService` triggered after sales & restocking based on base unit thresholds
-- [ ] `AlertsController` badge & active alerts list
-- [ ] Role enforcement unit tests verifying Worker calls to Owner endpoints return HTTP 403 Forbidden
+- [x] `AlertService` triggered after sales & restocking based on base unit thresholds
+- [x] `AlertsController` badge & active alerts list
+- [x] Role enforcement unit tests verifying Worker calls to Owner endpoints return HTTP 403 Forbidden
 
 ### PHASE 4 — Analytics Dashboard & Production Deployment
-- [ ] Owner-only Analytics endpoints (Top sellers, slow movers, revenue trends, AI recommendations)
-- [ ] Swagger JWT authorization configuration
-- [ ] Health check `/health` endpoint & Docker/Cloud production deployment
+- [x] Owner-only Analytics endpoints (Top sellers, slow movers, revenue trends, AI recommendations)
+- [x] Swagger JWT authorization configuration
+- [x] Health check `/health` endpoint & production deployment preparation
 
 ---
 

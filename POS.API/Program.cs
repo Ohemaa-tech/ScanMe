@@ -20,9 +20,19 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // 2. Register Repositories and Services
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
+builder.Services.AddScoped<ISaleRepository, SaleRepository>();
+builder.Services.AddScoped<IInventoryRepository, InventoryRepository>();
+builder.Services.AddScoped<IAlertRepository, AlertRepository>();
+builder.Services.AddScoped<IAnalyticsRepository, AnalyticsRepository>();
 builder.Services.AddHttpClient<IExternalBarcodeService, OpenFoodFactsBarcodeService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<ISaleService, SaleService>();
+builder.Services.AddScoped<IInventoryService, InventoryService>();
+builder.Services.AddScoped<IAlertService, AlertService>();
+builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
+
+builder.Services.AddHealthChecks();
 
 // 3. JWT Authentication Configuration
 var jwtKey = builder.Configuration["Jwt:Key"] ?? "SUPER_SECRET_POS_JWT_SIGNING_KEY_2026_CHANGE_IN_PROD!";
@@ -117,6 +127,10 @@ if (app.Environment.IsDevelopment())
 app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
+app.MapHealthChecks("/health");
 app.MapControllers();
+
+// Redirect root to Swagger UI so localhost:5000 is not a dead 404
+app.MapGet("/", () => Results.Redirect("/swagger")).ExcludeFromDescription();
 
 app.Run();

@@ -9,6 +9,7 @@ namespace POS.Core.Interfaces
         Task<IEnumerable<Product>> GetAllProductsAsync(string? search = null, string? category = null);
         Task<Product?> GetProductByIdAsync(int id);
         Task<ProductUnit?> GetProductUnitByBarcodeAsync(string barcode);
+        Task<ProductUnit?> GetProductUnitByIdAsync(int unitId);
         Task<Product> CreateProductAsync(Product product);
         Task UpdateProductAsync(Product product);
         Task DeleteProductAsync(int id); // Soft delete

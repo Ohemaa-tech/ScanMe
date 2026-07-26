@@ -3,7 +3,8 @@ namespace POS.Core.Enums
     public enum AlertType
     {
         LowStock,
-        OutOfStock
+        OutOfStock,
+        Restock
     }
 
     public enum StockStatus

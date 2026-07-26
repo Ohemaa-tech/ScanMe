@@ -1,307 +1,194 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { alertsApi } from '../api/alertsApi';
 import {
-  AlertCircle,
-  AlertTriangle,
-  CheckCircle2,
-  Check,
-  RotateCw,
-  MoreVertical,
-  Sliders,
-  Box,
+  AlertCircle, AlertTriangle, CheckCircle2, Check,
+  RotateCw, Bell, Loader2,
 } from 'lucide-react';
 
-const INITIAL_ALERTS = [
-  {
-    id: 1,
-    productName: 'Artisan Coffee Beans (Dark Roast - 1kg)',
-    sku: 'PRD-CFB-001',
-    currentQty: 0,
-    threshold: 15,
-    severity: 'critical',
-    timeAgo: '5 mins ago',
-    isRead: false,
-  },
-  {
-    id: 2,
-    productName: 'Organic Soy Milk (12pk Case)',
-    sku: 'PRD-SOY-002',
-    currentQty: 4,
-    threshold: 10,
-    severity: 'warning',
-    timeAgo: '2 hours ago',
-    isRead: false,
-  },
-  {
-    id: 3,
-    productName: 'Paper Takeout Bags (Small - 500ct)',
-    sku: 'PRD-[#BAG-003]',
-    currentQty: 0,
-    threshold: 50,
-    severity: 'critical',
-    timeAgo: '4 hours ago',
-    isRead: false,
-  },
-  {
-    id: 4,
-    productName: 'Biodegradable Straws (Box of 1000)',
-    sku: 'PRD-STR-004',
-    currentQty: 215,
-    threshold: 200,
-    severity: 'read',
-    timeAgo: 'Yesterday',
-    isRead: true,
-    statusText: 'Awaiting delivery',
-  },
-];
+const POLL_INTERVAL = 30000; // 30 seconds
 
 export default function AlertsPage() {
-  const [alerts, setAlerts] = useState(INITIAL_ALERTS);
-  const [activeTab, setActiveTab] = useState('all'); // all, unread, critical
-  const [toastMessage, setToastMessage] = useState(null);
+  const [alerts, setAlerts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('all'); // all, unread, read
+  const [toast, setToast] = useState(null);
 
-  const handleMarkAsRead = (id) => {
-    setAlerts((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, isRead: true } : a))
-    );
-    showToast('Alert marked as read');
+  const showToast = (msg, type = 'success') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
   };
 
-  const handleMarkAllRead = () => {
-    setAlerts((prev) => prev.map((a) => ({ ...a, isRead: true })));
-    showToast('All alerts marked as read');
+  const fetchAlerts = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    try {
+      const data = await alertsApi.getAlerts();
+      setAlerts(Array.isArray(data) ? data : []);
+    } catch {
+      if (!silent) showToast('Failed to load alerts', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAlerts();
+    // 30s polling
+    const interval = setInterval(() => fetchAlerts(true), POLL_INTERVAL);
+    return () => clearInterval(interval);
+  }, [fetchAlerts]);
+
+  const handleMarkRead = async (id) => {
+    try {
+      await alertsApi.markRead(id);
+      setAlerts((prev) => prev.map((a) => a.id === id ? { ...a, isRead: true } : a));
+      showToast('Alert marked as read');
+    } catch {
+      showToast('Failed to mark alert', 'error');
+    }
   };
 
-  const handleRestock = (productName) => {
-    showToast(`Restock order initiated for ${productName}`);
+  const handleMarkAllRead = async () => {
+    const unread = alerts.filter((a) => !a.isRead);
+    try {
+      await Promise.all(unread.map((a) => alertsApi.markRead(a.id)));
+      setAlerts((prev) => prev.map((a) => ({ ...a, isRead: true })));
+      showToast(`Marked ${unread.length} alerts as read`);
+    } catch {
+      showToast('Failed to mark all read', 'error');
+    }
   };
 
-  const showToast = (msg) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3000);
-  };
-
-  const filteredAlerts = alerts.filter((a) => {
-    if (activeTab === 'unread') return !a.isRead;
-    if (activeTab === 'critical') return a.severity === 'critical';
+  const filtered = alerts.filter((a) => {
+    if (filter === 'unread') return !a.isRead;
+    if (filter === 'read') return a.isRead;
     return true;
   });
 
   const unreadCount = alerts.filter((a) => !a.isRead).length;
-  const criticalCount = alerts.filter((a) => a.severity === 'critical').length;
+
+  const severityStyle = (alert) => {
+    if (alert.isRead) return 'border-neutral-200 bg-white opacity-60';
+    if (alert.alertType === 'OutOfStock') return 'border-red-200 bg-red-50';
+    return 'border-amber-200 bg-amber-50';
+  };
+
+  const alertIcon = (alert) => {
+    if (alert.alertType === 'OutOfStock') return <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />;
+    return <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />;
+  };
+
+  const timeAgo = (dateStr) => {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
+  };
 
   return (
-    <div className="space-y-6 pb-28 text-slate-900">
-      {/* Toast Notification */}
-      {toastMessage && (
-        <div className="fixed top-4 right-4 z-50 animate-bounce">
-          <div className="bg-slate-900 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-2xl border border-neutral-800 flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            <span>{toastMessage}</span>
-          </div>
+    <div className="space-y-5 text-slate-900">
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-2xl ${toast.type === 'error' ? 'bg-red-600' : 'bg-slate-900'}`}>
+          {toast.type === 'error' ? <AlertTriangle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
+          {toast.msg}
         </div>
       )}
 
-      {/* Top Header Row & Action Buttons */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">Inventory Alerts</h2>
-          <p className="text-xs sm:text-sm text-slate-500">
-            Manage low stock notifications and critical product shortages.
-          </p>
-        </div>
-
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <button
-            onClick={handleMarkAllRead}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-neutral-300 bg-white text-slate-800 hover:bg-slate-50 font-bold text-xs shadow-xs transition-colors"
-          >
-            <Check className="w-3.5 h-3.5" />
-            <span>Mark All Read</span>
-          </button>
-
-          <button
-            onClick={() => showToast('Refreshed stock alert logs')}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-md transition-colors"
-          >
-            <RotateCw className="w-3.5 h-3.5" />
-            <span>Refresh</span>
+          <div>
+            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+              <Bell className="w-5 h-5" /> Alerts
+            </h2>
+            <p className="text-xs text-slate-500">
+              {unreadCount > 0 ? `${unreadCount} unread alert${unreadCount > 1 ? 's' : ''}` : 'All caught up'}
+              {' '}· Auto-refreshes every 30s
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {unreadCount > 0 && (
+            <button onClick={handleMarkAllRead} className="text-xs font-bold text-neutral-600 border border-neutral-200 px-3 py-2 rounded-xl hover:bg-neutral-100 flex items-center gap-1.5">
+              <Check className="w-3.5 h-3.5" /> Mark All Read
+            </button>
+          )}
+          <button onClick={() => fetchAlerts()} className="text-xs font-semibold border border-neutral-200 px-3 py-2 rounded-xl hover:bg-neutral-100 flex items-center gap-1.5">
+            <RotateCw className="w-3.5 h-3.5" /> Refresh
           </button>
         </div>
       </div>
 
-      {/* Filter Tabs Header Bar */}
-      <div className="border-b border-neutral-200 flex items-center gap-6 text-xs font-bold">
-        <button
-          onClick={() => setActiveTab('all')}
-          className={`py-3 relative flex items-center gap-2 transition-colors ${
-            activeTab === 'all'
-              ? 'text-slate-900 border-b-2 border-slate-900'
-              : 'text-slate-500 hover:text-slate-900'
-          }`}
-        >
-          <span>All Alerts ({alerts.length})</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('unread')}
-          className={`py-3 relative flex items-center gap-2 transition-colors ${
-            activeTab === 'unread'
-              ? 'text-slate-900 border-b-2 border-slate-900'
-              : 'text-slate-500 hover:text-slate-900'
-          }`}
-        >
-          <span>Unread ({unreadCount})</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('critical')}
-          className={`py-3 relative flex items-center gap-2 transition-colors ${
-            activeTab === 'critical'
-              ? 'text-red-600 border-b-2 border-red-600'
-              : 'text-slate-500 hover:text-slate-900'
-          }`}
-        >
-          <span>Critical</span>
-          <span className="w-4 h-4 rounded-full bg-red-600 text-white text-[10px] font-extrabold flex items-center justify-center">
-            {criticalCount}
-          </span>
-        </button>
+      {/* Filter Tabs */}
+      <div className="flex gap-2">
+        {[
+          { value: 'all', label: `All (${alerts.length})` },
+          { value: 'unread', label: `Unread (${unreadCount})` },
+          { value: 'read', label: `Read (${alerts.length - unreadCount})` },
+        ].map(({ value, label }) => (
+          <button
+            key={value}
+            onClick={() => setFilter(value)}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              filter === value ? 'bg-black text-white' : 'bg-white border border-neutral-200 text-neutral-600 hover:bg-neutral-100'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
-      {/* Alerts List Container */}
-      <div className="space-y-4">
-        {filteredAlerts.length === 0 ? (
-          <div className="bg-white rounded-2xl p-12 border border-neutral-200 text-center shadow-xs space-y-2">
-            <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto" />
-            <h4 className="font-bold text-base text-slate-900">No alerts found</h4>
-            <p className="text-xs text-slate-500">All inventory items are operating within healthy thresholds.</p>
-          </div>
-        ) : (
-          filteredAlerts.map((alert) => (
+      {/* Alert List */}
+      {loading ? (
+        <div className="flex items-center justify-center py-20 gap-3 text-neutral-400">
+          <Loader2 className="w-6 h-6 animate-spin" />
+          <span className="text-sm">Loading alerts...</span>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-20 text-neutral-400">
+          <CheckCircle2 className="w-12 h-12 mx-auto mb-3 opacity-30" />
+          <p className="text-sm font-medium">No alerts to show</p>
+          <p className="text-xs mt-1">Low-stock alerts will appear here automatically</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map((alert) => (
             <div
               key={alert.id}
-              className={`bg-white rounded-2xl p-4 sm:p-5 border border-neutral-200 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all ${
-                alert.severity === 'critical'
-                  ? 'border-l-4 border-l-red-600'
-                  : alert.severity === 'warning'
-                  ? 'border-l-4 border-l-amber-500'
-                  : 'bg-slate-50/70 border-l-4 border-l-slate-300'
-              }`}
+              className={`rounded-2xl border p-4 flex items-start justify-between gap-4 transition-all ${severityStyle(alert)}`}
             >
-              {/* Left Side: Icon, Badge & Details */}
-              <div className="flex items-start gap-4 flex-1 min-w-0">
-                {/* Status Icon Badge */}
-                <div className="mt-0.5">
-                  {alert.severity === 'critical' && (
-                    <div className="w-10 h-10 rounded-full bg-red-100 border border-red-200 text-red-600 flex items-center justify-center shrink-0 shadow-xs">
-                      <AlertCircle className="w-5 h-5 text-red-600" />
-                    </div>
-                  )}
-                  {alert.severity === 'warning' && (
-                    <div className="w-10 h-10 rounded-full bg-amber-100 border border-amber-200 text-amber-700 flex items-center justify-center shrink-0 shadow-xs">
-                      <AlertTriangle className="w-5 h-5 text-amber-700" />
-                    </div>
-                  )}
-                  {alert.severity === 'read' && (
-                    <div className="w-10 h-10 rounded-full bg-emerald-100 border border-emerald-200 text-emerald-600 flex items-center justify-center shrink-0 shadow-xs">
-                      <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                    </div>
-                  )}
-                </div>
-
-                {/* Details */}
-                <div className="space-y-1 min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    {alert.severity === 'critical' && (
-                      <span className="bg-red-600 text-white text-[9px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider">
-                        CRITICAL
-                      </span>
-                    )}
-                    {alert.severity === 'warning' && (
-                      <span className="bg-amber-500 text-white text-[9px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider">
-                        WARNING
-                      </span>
-                    )}
-                    {alert.severity === 'read' && (
-                      <span className="bg-slate-100 text-slate-600 border border-slate-200 text-[9px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider">
-                        READ
-                      </span>
-                    )}
-                    <span className="text-[11px] text-slate-400 font-medium">
-                      {alert.timeAgo}
+              <div className="flex items-start gap-3">
+                {alertIcon(alert)}
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={`text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                      alert.alertType === 'OutOfStock' ? 'bg-red-200 text-red-800' : 'bg-amber-200 text-amber-800'
+                    }`}>
+                      {alert.alertType === 'OutOfStock' ? 'Out of Stock' : 'Low Stock'}
                     </span>
+                    {!alert.isRead && (
+                      <span className="w-2 h-2 bg-black rounded-full inline-block" title="Unread" />
+                    )}
                   </div>
-
-                  <h3 className="font-extrabold text-sm sm:text-base text-slate-900 leading-snug truncate">
-                    {alert.productName}
-                  </h3>
-
-                  <div className="flex flex-wrap items-center gap-4 text-xs font-mono text-slate-600 pt-0.5">
-                    <span className="flex items-center gap-1 font-bold text-slate-900">
-                      <Box className="w-3.5 h-3.5 text-slate-400" />
-                      Current:{' '}
-                      <strong
-                        className={`font-extrabold ${
-                          alert.currentQty === 0
-                            ? 'text-red-600'
-                            : alert.currentQty <= alert.threshold
-                            ? 'text-amber-600'
-                            : 'text-slate-900'
-                        }`}
-                      >
-                        {alert.currentQty} units
-                      </strong>
-                    </span>
-                    <span className="flex items-center gap-1 text-slate-500">
-                      <Sliders className="w-3.5 h-3.5 text-slate-400" />
-                      Threshold: {alert.threshold} units
-                    </span>
-                  </div>
+                  <p className="font-bold text-sm text-slate-900 mt-1">{alert.productName}</p>
+                  <p className="text-xs text-slate-600 mt-0.5">{alert.message}</p>
+                  <p className="text-[11px] text-neutral-400 mt-1">{timeAgo(alert.createdAt)}</p>
                 </div>
               </div>
-
-              {/* Right Side: Actions or Status */}
-              <div className="flex items-center gap-3 self-end sm:self-center shrink-0 pt-2 sm:pt-0">
-                {!alert.isRead && (
-                  <button
-                    onClick={() => handleMarkAsRead(alert.id)}
-                    className="text-xs font-bold text-slate-500 hover:text-slate-900 transition-colors px-2 py-1"
-                  >
-                    Mark as Read
-                  </button>
-                )}
-
-                {alert.severity === 'critical' && (
-                  <button
-                    onClick={() => handleRestock(alert.productName)}
-                    className="bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs px-4 py-2 rounded-xl shadow-md transition-colors"
-                  >
-                    Restock Now
-                  </button>
-                )}
-
-                {alert.severity === 'warning' && (
-                  <button
-                    onClick={() => showToast(`Edit threshold for ${alert.productName}`)}
-                    className="bg-white border border-neutral-300 text-slate-800 hover:bg-slate-100 font-bold text-xs px-4 py-2 rounded-xl shadow-xs transition-colors"
-                  >
-                    Edit Threshold
-                  </button>
-                )}
-
-                {alert.statusText && (
-                  <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-                    <span>{alert.statusText}</span>
-                    <button className="text-slate-400 hover:text-slate-800 p-1">
-                      <MoreVertical className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
-              </div>
+              {!alert.isRead && (
+                <button
+                  onClick={() => handleMarkRead(alert.id)}
+                  className="shrink-0 inline-flex items-center gap-1.5 text-[11px] font-bold border border-neutral-300 bg-white px-3 py-1.5 rounded-xl hover:bg-neutral-100 transition-colors"
+                >
+                  <Check className="w-3 h-3" /> Mark Read
+                </button>
+              )}
             </div>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
