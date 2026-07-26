@@ -1,11 +1,12 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Settings, User, LogOut } from 'lucide-react';
-import { useAuthStore } from '../store/authStore';
+import useAuth from '../hooks/useAuth';
 
 export default function Header({ searchInput, setSearchInput }) {
   const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+  const { user, logout } = useAuth();
+
 
   const handleLogout = () => {
     logout();

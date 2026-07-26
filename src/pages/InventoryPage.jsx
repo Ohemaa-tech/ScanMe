@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { formatCurrency } from '../utils/formatCurrency';
 import { inventoryApi } from '../api/inventoryApi';
-import { useAuthStore } from '../store/authStore';
+import useAuth from '../hooks/useAuth';
+import StockBadge from '../components/StockBadge';
+import RestockModal from '../components/RestockModal';
 import {
-  Search, Filter, Box, AlertTriangle, AlertCircle,
-  TrendingUp, CheckCircle2, Plus, ChevronLeft, ChevronRight,
+  Search, Box, AlertTriangle, AlertCircle,
+  CheckCircle2, Plus, ChevronLeft, ChevronRight,
   X, Loader2, RefreshCw,
 } from 'lucide-react';
 
 export default function InventoryPage() {
-  const user = useAuthStore((s) => s.user);
-  const isOwner = user?.role === 'Owner';
+  const { isOwner } = useAuth();
 
   const [inventory, setInventory] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -22,8 +23,6 @@ export default function InventoryPage() {
 
   // Restock modal
   const [restockItem, setRestockItem] = useState(null);
-  const [restockUnitId, setRestockUnitId] = useState('');
-  const [restockQty, setRestockQty] = useState(1);
   const [restockLoading, setRestockLoading] = useState(false);
 
   // Threshold edit
@@ -57,16 +56,11 @@ export default function InventoryPage() {
     return () => clearTimeout(t);
   }, [searchTerm]);
 
-  const handleRestock = async () => {
-    if (!restockItem || restockQty < 1) return;
+  const handleRestockSubmit = async (restockData) => {
     setRestockLoading(true);
     try {
-      await inventoryApi.restock({
-        productId: restockItem.productId,
-        productUnitId: restockUnitId ? Number(restockUnitId) : null,
-        quantityRestocked: Number(restockQty),
-      });
-      showToast(`Restocked ${restockItem.productName} successfully`);
+      await inventoryApi.restock(restockData);
+      showToast(`Restocked ${restockItem?.productName || 'product'} successfully`);
       setRestockItem(null);
       fetchInventory();
     } catch (err) {
@@ -91,18 +85,6 @@ export default function InventoryPage() {
     } finally {
       setThresholdLoading(false);
     }
-  };
-
-  const stockColor = (status) => {
-    if (status === 'OutOfStock') return 'bg-red-100 text-red-700';
-    if (status === 'LowStock') return 'bg-amber-100 text-amber-700';
-    return 'bg-emerald-100 text-emerald-700';
-  };
-
-  const stockIcon = (status) => {
-    if (status === 'OutOfStock') return <AlertCircle className="w-3 h-3" />;
-    if (status === 'LowStock') return <AlertTriangle className="w-3 h-3" />;
-    return <CheckCircle2 className="w-3 h-3" />;
   };
 
   const totalPages = Math.max(1, Math.ceil(inventory.length / PER_PAGE));
@@ -230,15 +212,12 @@ export default function InventoryPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3.5 text-center">
-                      <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full ${stockColor(item.stockStatus)}`}>
-                        {stockIcon(item.stockStatus)}
-                        {item.stockStatus === 'OutOfStock' ? 'OUT' : item.stockStatus === 'LowStock' ? 'LOW' : 'OK'}
-                      </span>
+                      <StockBadge status={item.stockStatus === 'OutOfStock' ? 'Out' : item.stockStatus === 'LowStock' ? 'Low' : 'OK'} />
                     </td>
                     {isOwner && (
                       <td className="px-4 py-3.5 text-center">
                         <button
-                          onClick={() => { setRestockItem(item); setRestockQty(1); setRestockUnitId(''); }}
+                          onClick={() => setRestockItem(item)}
                           className="inline-flex items-center gap-1.5 text-xs font-bold bg-black text-white px-3 py-1.5 rounded-xl hover:bg-neutral-800 transition-colors"
                         >
                           <Plus className="w-3 h-3" /> Restock
@@ -268,59 +247,14 @@ export default function InventoryPage() {
 
       {/* Restock Modal */}
       {restockItem && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl">
-            <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-neutral-200">
-              <h3 className="text-base font-extrabold">Restock: {restockItem.productName}</h3>
-              <button onClick={() => setRestockItem(null)} className="p-2 hover:bg-neutral-100 rounded-xl">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="text-xs font-bold text-neutral-700 block mb-1.5">Select Unit (optional)</label>
-                <select
-                  value={restockUnitId}
-                  onChange={(e) => setRestockUnitId(e.target.value)}
-                  className="w-full border border-neutral-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-black"
-                >
-                  <option value="">Base units directly</option>
-                  {restockItem.units?.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.unitName} (×{u.conversionFactor} base units each)
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs font-bold text-neutral-700 block mb-1.5">Quantity to Restock</label>
-                <input
-                  type="number"
-                  min="1"
-                  value={restockQty}
-                  onChange={(e) => setRestockQty(e.target.value)}
-                  className="w-full border border-neutral-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-black"
-                />
-                {restockUnitId && restockItem.units && (
-                  <p className="text-[11px] text-neutral-500 mt-1.5">
-                    = {Number(restockQty) * (restockItem.units.find((u) => String(u.id) === String(restockUnitId))?.conversionFactor || 1)} base units added
-                  </p>
-                )}
-              </div>
-              <div className="flex gap-3 pt-2">
-                <button onClick={() => setRestockItem(null)} className="flex-1 border border-neutral-200 font-bold text-sm py-3 rounded-2xl hover:bg-neutral-100">Cancel</button>
-                <button
-                  onClick={handleRestock}
-                  disabled={restockLoading}
-                  className="flex-1 bg-black text-white font-bold text-sm py-3 rounded-2xl hover:bg-neutral-800 disabled:opacity-50"
-                >
-                  {restockLoading ? 'Restocking...' : 'Confirm Restock'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <RestockModal
+          item={restockItem}
+          onClose={() => setRestockItem(null)}
+          onRestock={handleRestockSubmit}
+          loading={restockLoading}
+        />
       )}
+
 
       {/* Threshold Edit Modal */}
       {editThresholdItem && (

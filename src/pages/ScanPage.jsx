@@ -1,8 +1,9 @@
 import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BarcodeScanner from '../components/BarcodeScanner';
+import UnitSelectorPill from '../components/UnitSelectorPill';
 import { productsApi } from '../api/productsApi';
-import { useCartStore } from '../store/cartStore';
+import useCart from '../hooks/useCart';
 import { formatCurrency } from '../utils/formatCurrency';
 import {
   ShoppingCart, Minus, Plus, Trash2, ArrowRight,
@@ -11,7 +12,7 @@ import {
 
 export default function ScanPage() {
   const navigate = useNavigate();
-  const { addItem, items, removeItem, clearCart, getTotal, getItemCount, switchUnit } = useCartStore();
+  const { addItem, items, removeItem, clearCart, totalAmount, totalItemCount } = useCart();
 
   // scannedProduct: full ProductResponseDto { id, name, imageUrl, units: [], currentBaseStock, ... }
   const [scannedProduct, setScannedProduct] = useState(null);
@@ -33,10 +34,7 @@ export default function ScanPage() {
     setLoading(true);
     setError(null);
     try {
-      // Returns ProductUnitResponseDto: { id, productId, unitName, barcode, conversionFactor, price, isDefault }
-      // Backend also enriches it with product info — let's fetch the full product
       const unit = await productsApi.getByBarcode(barcode);
-      // Fetch the full product to get name, image, all units
       const product = await productsApi.getById(unit.productId);
 
       setScannedProduct(product);
@@ -153,23 +151,14 @@ export default function ScanPage() {
               {scannedProduct.units && scannedProduct.units.length > 1 && (
                 <div className="pt-2">
                   <p className="text-[11px] font-bold text-neutral-500 uppercase tracking-wider mb-2">Select Unit</p>
-                  <div className="flex flex-wrap gap-2">
-                    {scannedProduct.units.map((unit) => (
-                      <button
-                        key={unit.id}
-                        onClick={() => setSelectedUnit(unit)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
-                          selectedUnit.id === unit.id
-                            ? 'bg-black text-white border-black'
-                            : 'bg-white text-neutral-700 border-neutral-300 hover:border-black'
-                        }`}
-                      >
-                        {unit.unitName} — {formatCurrency(unit.price)}
-                      </button>
-                    ))}
-                  </div>
+                  <UnitSelectorPill
+                    units={scannedProduct.units}
+                    selectedUnitId={selectedUnit.id}
+                    onSelect={(unit) => setSelectedUnit(unit)}
+                  />
                 </div>
               )}
+
 
               {/* Stepper + Add to Cart */}
               <div className="pt-3 border-t border-neutral-100 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3">
@@ -230,16 +219,16 @@ export default function ScanPage() {
             <ShoppingCart className="w-4 h-4 text-black" />
             <div>
               <span className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider block">CART</span>
-              <span className="text-xs font-extrabold text-black">{getItemCount()} Items</span>
+              <span className="text-xs font-extrabold text-black">{totalItemCount} Items</span>
             </div>
           </div>
 
           <div className="flex items-center gap-4">
             <div>
               <span className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider block">SUBTOTAL</span>
-              <span className="text-lg font-extrabold text-black font-mono">{formatCurrency(getTotal())}</span>
+              <span className="text-lg font-extrabold text-black font-mono">{formatCurrency(totalAmount)}</span>
             </div>
-            {getItemCount() > 0 && (
+            {totalItemCount > 0 && (
               <button onClick={clearCart} className="text-xs font-semibold text-neutral-500 hover:text-black flex items-center gap-1 underline">
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>Void</span>
@@ -249,7 +238,7 @@ export default function ScanPage() {
 
           <button
             onClick={() => navigate('/checkout')}
-            disabled={getItemCount() === 0}
+            disabled={totalItemCount === 0}
             className="bg-black hover:bg-neutral-800 disabled:opacity-40 text-white font-extrabold px-6 py-3 rounded-xl text-sm transition-all shadow-lg flex items-center gap-2 ml-auto"
           >
             <span>Checkout</span>
@@ -260,3 +249,4 @@ export default function ScanPage() {
     </div>
   );
 }
+

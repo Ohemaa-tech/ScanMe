@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { formatCurrency } from '../utils/formatCurrency';
 import { productsApi } from '../api/productsApi';
-import { useAuthStore } from '../store/authStore';
+import useAuth from '../hooks/useAuth';
+import StockBadge from '../components/StockBadge';
+import ProductAutoFillModal from '../components/ProductAutoFillModal';
 import {
-  Plus, Search, Edit3, Trash2, X, Scan,
+  Plus, Search, Edit3, Trash2, X,
   Boxes, ChevronLeft, ChevronRight, AlertTriangle,
   CheckCircle2, Package, Loader2,
 } from 'lucide-react';
@@ -15,8 +17,7 @@ const EMPTY_FORM = {
 };
 
 export default function ProductsPage() {
-  const user = useAuthStore((s) => s.user);
-  const isOwner = user?.role === 'Owner';
+  const { isOwner } = useAuth();
 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -27,10 +28,6 @@ export default function ProductsPage() {
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [formError, setFormError] = useState(null);
   const [saving, setSaving] = useState(false);
-
-  // External barcode lookup state
-  const [lookupBarcode, setLookupBarcode] = useState('');
-  const [lookupLoading, setLookupLoading] = useState(false);
 
   // Pagination
   const [page, setPage] = useState(1);
@@ -88,28 +85,18 @@ export default function ProductsPage() {
     setIsModalOpen(true);
   };
 
-  const handleLookupExternal = async () => {
-    if (!lookupBarcode.trim()) return;
-    setLookupLoading(true);
-    try {
-      const result = await productsApi.lookupExternal(lookupBarcode.trim());
-      setFormData((prev) => ({
-        ...prev,
-        name: result.productName || prev.name,
-        brand: result.brand || prev.brand,
-        category: result.category || prev.category,
-        imageUrl: result.imageUrl || prev.imageUrl,
-        units: prev.units.map((u, i) =>
-          i === 0 ? { ...u, barcode: lookupBarcode.trim(), price: result.suggestedPrice || u.price } : u
-        ),
-      }));
-      showToast('Product data auto-filled from barcode!');
-    } catch {
-      showToast('No external data found for this barcode', 'error');
-    } finally {
-      setLookupLoading(false);
-      setLookupBarcode('');
-    }
+  const handleAutoFillData = (data) => {
+    setFormData((prev) => ({
+      ...prev,
+      name: data.productName || prev.name,
+      brand: data.brand || prev.brand,
+      category: data.category || prev.category,
+      imageUrl: data.imageUrl || prev.imageUrl,
+      units: prev.units.map((u, i) =>
+        i === 0 ? { ...u, barcode: data.barcode, price: data.suggestedPrice || u.price } : u
+      ),
+    }));
+    showToast('Product details auto-filled!');
   };
 
   const handleSave = async (e) => {
@@ -186,13 +173,6 @@ export default function ProductsPage() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
   const paged = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
-  const stockBadge = (p) => {
-    const qty = p.currentBaseStock ?? 0;
-    if (qty === 0) return <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">OUT</span>;
-    if (qty <= (p.lowStockThreshold ?? 10)) return <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">LOW</span>;
-    return <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">OK</span>;
-  };
-
   return (
     <div className="space-y-5 text-slate-900">
       {toast && (
@@ -250,7 +230,7 @@ export default function ProductsPage() {
               <div className="p-4 space-y-2">
                 <div className="flex items-start justify-between gap-2">
                   <h4 className="font-bold text-sm text-slate-900 leading-tight">{p.name}</h4>
-                  {stockBadge(p)}
+                  <StockBadge baseStock={p.currentBaseStock} threshold={p.lowStockThreshold} />
                 </div>
                 <p className="text-xs text-neutral-500">{p.category || '—'} {p.brand ? `· ${p.brand}` : ''}</p>
                 <div className="flex flex-wrap gap-1.5">
@@ -304,30 +284,14 @@ export default function ProductsPage() {
             </div>
 
             <form onSubmit={handleSave} className="p-6 space-y-5">
-              {/* External Barcode Lookup (Owner only, create mode) */}
+              {/* External Barcode Lookup Component */}
               {!editingProduct && (
-                <div className="bg-neutral-50 border border-neutral-200 rounded-2xl p-4 space-y-2">
-                  <p className="text-xs font-bold text-neutral-700 flex items-center gap-1.5">
-                    <Scan className="w-3.5 h-3.5" /> Auto-fill from Barcode
-                  </p>
-                  <div className="flex gap-2">
-                    <input
-                      value={lookupBarcode}
-                      onChange={(e) => setLookupBarcode(e.target.value)}
-                      placeholder="Enter barcode to auto-fill product details..."
-                      className="flex-1 bg-white border border-neutral-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-black"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleLookupExternal}
-                      disabled={lookupLoading || !lookupBarcode}
-                      className="bg-black text-white text-xs font-bold px-4 py-2 rounded-xl disabled:opacity-40 hover:bg-neutral-800"
-                    >
-                      {lookupLoading ? '...' : 'Lookup'}
-                    </button>
-                  </div>
-                </div>
+                <ProductAutoFillModal
+                  onAutoFill={handleAutoFillData}
+                  onError={(err) => showToast(err, 'error')}
+                />
               )}
+
 
               {formError && (
                 <div className="bg-red-50 border border-red-200 text-red-700 text-xs px-4 py-2.5 rounded-xl flex items-center gap-2">

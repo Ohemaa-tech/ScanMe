@@ -4,17 +4,16 @@ import {
   Scan, ShoppingCart, Package, Bell, BarChart3,
   Boxes, Users, HelpCircle, LogOut,
 } from 'lucide-react';
-import { useCartStore } from '../store/cartStore';
-import { useAuthStore } from '../store/authStore';
+import useCart from '../hooks/useCart';
+import useAuth from '../hooks/useAuth';
+import AlertBadge from './AlertBadge';
 import { alertsApi } from '../api/alertsApi';
 
 export default function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const logout = useAuthStore((state) => state.logout);
-  const user = useAuthStore((state) => state.user);
-  const isOwner = user?.role === 'Owner';
-  const itemCount = useCartStore((state) => state.getItemCount());
+  const { user, isOwner, logout } = useAuth();
+  const { totalItemCount } = useCart();
   const [unreadAlertCount, setUnreadAlertCount] = useState(0);
 
   const handleLogout = () => {
@@ -37,7 +36,7 @@ export default function Sidebar() {
 
   const NAV_ITEMS = [
     { label: 'Scan', path: '/scan', icon: Scan },
-    { label: 'Checkout', path: '/checkout', icon: ShoppingCart, badge: itemCount },
+    { label: 'Checkout', path: '/checkout', icon: ShoppingCart, badge: totalItemCount },
     { label: 'Inventory', path: '/inventory', icon: Package },
     { label: 'Alerts', path: '/alerts', icon: Bell, alertBadge: unreadAlertCount },
     ...(isOwner ? [
@@ -94,9 +93,7 @@ export default function Sidebar() {
                       </span>
                     )}
                     {item.alertBadge > 0 && !item.badge && (
-                      <span className={`font-bold text-[10px] px-2 py-0.5 rounded-full border ${isActive ? 'border-white text-white' : 'bg-red-500 text-white border-red-500'}`}>
-                        {item.alertBadge}
-                      </span>
+                      <AlertBadge count={item.alertBadge} />
                     )}
                   </>
                 )}
@@ -143,7 +140,9 @@ export default function Sidebar() {
                   </span>
                 )}
                 {item.alertBadge > 0 && !item.badge && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 w-2.5 h-2.5 rounded-full border-2 border-white" />
+                  <span className="absolute -top-1 -right-1">
+                    <AlertBadge count={item.alertBadge} />
+                  </span>
                 )}
               </div>
               <span>{item.label}</span>
@@ -154,3 +153,4 @@ export default function Sidebar() {
     </>
   );
 }
+

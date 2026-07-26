@@ -221,21 +221,22 @@ export default client;
 - [x] Axios JWT authorization header interceptors
 
 ### PHASE 2 — POS Scan, Dual-Unit Cart & Checkout
-- [ ] `BarcodeScanner` component & `useBarcode` hook
-- [ ] ScanPage with barcode lookup (`GET /api/products/barcode/{barcode}`)
-- [ ] Dual-unit selector pills (Single vs Bulk packaging)
-- [ ] CheckoutPage with line items, total calculations, and `POST /api/sales`
+- [x] `BarcodeScanner` component & `useBarcode` hook
+- [x] ScanPage with barcode lookup (`GET /api/products/barcode/{barcode}`)
+- [x] Dual-unit selector pills (Single vs Bulk packaging)
+- [x] CheckoutPage with line items, total calculations, and `POST /api/sales`
 
 ### PHASE 3 — Automated Barcode Product Import & Owner Catalog Management
-- [ ] ProductsPage for Owner catalog management
-- [ ] Automated Barcode Import Modal wired to `GET /api/products/lookup-external/{barcode}`
-- [ ] Packaging unit configurator (Single unit price + Bulk unit barcodes & conversion factors)
+- [x] ProductsPage for Owner catalog management
+- [x] Automated Barcode Import Modal wired to `GET /api/products/lookup-external/{barcode}`
+- [x] Packaging unit configurator (Single unit price + Bulk unit barcodes & conversion factors)
 
 ### PHASE 4 — Owner Inventory Restocking & Analytics Dashboard
-- [ ] InventoryPage with base unit stock & bulk carton count breakdown
-- [ ] Bulk unit Restock Modal for Shop Owner
-- [ ] AlertsPage with 30s polling
-- [ ] Owner Analytics Dashboard (Recharts top sellers, slow movers, revenue trends)
+- [x] InventoryPage with base unit stock & bulk carton count breakdown
+- [x] Bulk unit Restock Modal for Shop Owner
+- [x] AlertsPage with 30s polling
+- [x] Owner Analytics Dashboard (Recharts top sellers, slow movers, revenue trends)
+
 
 ---
 

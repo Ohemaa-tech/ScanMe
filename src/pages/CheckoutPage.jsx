@@ -1,17 +1,18 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useCartStore } from '../store/cartStore';
+import useCart from '../hooks/useCart';
+import CartItem from '../components/CartItem';
 import { salesApi } from '../api/salesApi';
 import { formatCurrency } from '../utils/formatCurrency';
 import {
-  ShoppingCart, Minus, Plus, Trash2, CheckCircle2,
-  CreditCard, Banknote, Smartphone, Scan, Package,
+  ShoppingCart, Trash2, CheckCircle2,
+  CreditCard, Banknote, Smartphone, Scan,
   AlertTriangle, ArrowLeft,
 } from 'lucide-react';
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
-  const { items, updateQty, removeItem, clearCart, getTotal, getItemCount } = useCartStore();
+  const { items, updateQty, removeItem, clearCart, totalAmount, totalItemCount } = useCart();
 
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [notes, setNotes] = useState('');
@@ -20,7 +21,7 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState(null);
 
-  const subtotal = getTotal();
+  const subtotal = totalAmount;
   const taxRate = 0.05;
   const taxAmount = subtotal * taxRate;
   const grandTotal = subtotal + taxAmount;
@@ -96,7 +97,7 @@ export default function CheckoutPage() {
           <div className="flex items-center justify-between bg-white px-5 py-3.5 rounded-2xl border border-neutral-200 shadow-xs">
             <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
               <ShoppingCart className="w-4 h-4 text-slate-700" />
-              <span>Cart ({getItemCount()} items)</span>
+              <span>Cart ({totalItemCount} items)</span>
             </h3>
             {items.length > 0 && (
               <button
@@ -125,63 +126,17 @@ export default function CheckoutPage() {
           ) : (
             <div className="space-y-3">
               {items.map((item) => (
-                <div
+                <CartItem
                   key={item.productUnitId}
-                  className="bg-white rounded-2xl p-4 border border-neutral-200 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
-                >
-                  {/* Thumbnail + Info */}
-                  <div className="flex items-center gap-3.5 flex-1 min-w-0">
-                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden border border-neutral-200 shrink-0 bg-neutral-100 flex items-center justify-center">
-                      {item.imageUrl
-                        ? <img src={item.imageUrl} alt={item.productName} className="w-full h-full object-cover" />
-                        : <Package className="w-6 h-6 text-neutral-300" />}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <h4 className="font-bold text-sm text-slate-900 truncate">{item.productName}</h4>
-                      <p className="text-[11px] text-slate-400 mt-0.5">
-                        Unit: <span className="font-semibold text-slate-600">{item.unitName}</span>
-                        {item.conversionFactor > 1 && (
-                          <span className="ml-1 text-neutral-400">({item.conversionFactor} base units)</span>
-                        )}
-                      </p>
-                      <p className="text-xs font-semibold text-slate-600 mt-1 font-mono">
-                        {formatCurrency(item.price)} each
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Qty stepper + line total + remove */}
-                  <div className="flex items-center gap-3 shrink-0">
-                    <div className="flex items-center bg-neutral-100 border border-neutral-200 rounded-xl p-1">
-                      <button
-                        onClick={() => updateQty(item.productUnitId, item.quantity - 1)}
-                        className="w-7 h-7 flex items-center justify-center rounded-lg bg-white text-black font-bold hover:bg-neutral-200"
-                      >
-                        <Minus className="w-3 h-3" />
-                      </button>
-                      <span className="w-9 text-center font-mono font-bold text-black text-sm">{item.quantity}</span>
-                      <button
-                        onClick={() => updateQty(item.productUnitId, item.quantity + 1)}
-                        className="w-7 h-7 flex items-center justify-center rounded-lg bg-white text-black font-bold hover:bg-neutral-200"
-                      >
-                        <Plus className="w-3 h-3" />
-                      </button>
-                    </div>
-                    <span className="font-extrabold text-sm text-black font-mono w-20 text-right">
-                      {formatCurrency(item.price * item.quantity)}
-                    </span>
-                    <button
-                      onClick={() => removeItem(item.productUnitId)}
-                      className="text-neutral-400 hover:text-red-500 transition-colors p-1"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
+                  item={item}
+                  onUpdateQty={updateQty}
+                  onRemove={removeItem}
+                />
               ))}
             </div>
           )}
         </div>
+
 
         {/* RIGHT: Order Summary + Payment */}
         <div className="space-y-4">

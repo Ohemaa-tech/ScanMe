@@ -1,15 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { alertsApi } from '../api/alertsApi';
+import React, { useState } from 'react';
+import useAlerts from '../hooks/useAlerts';
+import { timeAgo } from '../utils/dateHelpers';
 import {
   AlertCircle, AlertTriangle, CheckCircle2, Check,
   RotateCw, Bell, Loader2,
 } from 'lucide-react';
 
-const POLL_INTERVAL = 30000; // 30 seconds
-
 export default function AlertsPage() {
-  const [alerts, setAlerts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { alerts, unreadCount, loading, refresh, markRead, markAllRead } = useAlerts(30000);
   const [filter, setFilter] = useState('all'); // all, unread, read
   const [toast, setToast] = useState(null);
 
@@ -18,44 +16,14 @@ export default function AlertsPage() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const fetchAlerts = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true);
-    try {
-      const data = await alertsApi.getAlerts();
-      setAlerts(Array.isArray(data) ? data : []);
-    } catch {
-      if (!silent) showToast('Failed to load alerts', 'error');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchAlerts();
-    // 30s polling
-    const interval = setInterval(() => fetchAlerts(true), POLL_INTERVAL);
-    return () => clearInterval(interval);
-  }, [fetchAlerts]);
-
   const handleMarkRead = async (id) => {
-    try {
-      await alertsApi.markRead(id);
-      setAlerts((prev) => prev.map((a) => a.id === id ? { ...a, isRead: true } : a));
-      showToast('Alert marked as read');
-    } catch {
-      showToast('Failed to mark alert', 'error');
-    }
+    await markRead(id);
+    showToast('Alert marked as read');
   };
 
   const handleMarkAllRead = async () => {
-    const unread = alerts.filter((a) => !a.isRead);
-    try {
-      await Promise.all(unread.map((a) => alertsApi.markRead(a.id)));
-      setAlerts((prev) => prev.map((a) => ({ ...a, isRead: true })));
-      showToast(`Marked ${unread.length} alerts as read`);
-    } catch {
-      showToast('Failed to mark all read', 'error');
-    }
+    await markAllRead();
+    showToast('Marked all alerts as read');
   };
 
   const filtered = alerts.filter((a) => {
@@ -63,8 +31,6 @@ export default function AlertsPage() {
     if (filter === 'read') return a.isRead;
     return true;
   });
-
-  const unreadCount = alerts.filter((a) => !a.isRead).length;
 
   const severityStyle = (alert) => {
     if (alert.isRead) return 'border-neutral-200 bg-white opacity-60';
@@ -77,15 +43,6 @@ export default function AlertsPage() {
     return <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />;
   };
 
-  const timeAgo = (dateStr) => {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return 'just now';
-    if (mins < 60) return `${mins}m ago`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    return `${Math.floor(hrs / 24)}d ago`;
-  };
 
   return (
     <div className="space-y-5 text-slate-900">
@@ -115,7 +72,7 @@ export default function AlertsPage() {
               <Check className="w-3.5 h-3.5" /> Mark All Read
             </button>
           )}
-          <button onClick={() => fetchAlerts()} className="text-xs font-semibold border border-neutral-200 px-3 py-2 rounded-xl hover:bg-neutral-100 flex items-center gap-1.5">
+          <button onClick={() => refresh()} className="text-xs font-semibold border border-neutral-200 px-3 py-2 rounded-xl hover:bg-neutral-100 flex items-center gap-1.5">
             <RotateCw className="w-3.5 h-3.5" /> Refresh
           </button>
         </div>
