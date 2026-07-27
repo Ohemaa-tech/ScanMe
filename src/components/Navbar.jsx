@@ -32,9 +32,7 @@ export default function Navbar() {
       <aside className="hidden lg:flex flex-col w-64 bg-slate-900 border-r border-slate-800 text-slate-300 min-h-screen fixed left-0 top-0 z-30">
         {/* Brand Header */}
         <div className="h-16 px-6 flex items-center gap-3 border-b border-slate-800 bg-slate-950/50">
-          <div className="w-9 h-9 rounded-xl bg-black flex items-center justify-center text-white shadow-md">
-            <Store className="w-5 h-5" />
-          </div>
+          <img src="/logo.png" alt="SwiftScan" className="w-9 h-9 rounded-xl object-cover shadow-md border border-slate-700" />
           <div>
             <h1 className="font-bold text-base text-white tracking-tight leading-none">SwiftScan POS</h1>
             <span className="text-[10px] text-neutral-400 font-medium tracking-wider uppercase">Retail Terminal v1.0</span>

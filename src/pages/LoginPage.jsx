@@ -37,9 +37,7 @@ export default function LoginPage() {
 
         {/* Brand Header */}
         <div className="text-center space-y-2">
-          <div className="inline-flex w-14 h-14 rounded-2xl bg-black border border-slate-800 items-center justify-center text-white shadow-xl mb-2">
-            <Store className="w-7 h-7 text-emerald-400" />
-          </div>
+          <img src="/logo.png" alt="SwiftScan" className="inline-block w-16 h-16 rounded-2xl object-cover shadow-2xl border border-slate-700 mb-2" />
           <h1 className="text-2xl font-extrabold tracking-tight text-white">SwiftScan POS</h1>
           <p className="text-xs text-slate-400">Sign in to access your retail terminal</p>
         </div>

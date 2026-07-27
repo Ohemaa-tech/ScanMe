@@ -16,11 +16,9 @@ export default function Header({ searchInput, setSearchInput }) {
   return (
     <header className="h-14 bg-white text-slate-900 border-b border-neutral-200 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-40 shadow-xs">
       {/* Left: Brand Logo & Title */}
-      <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-black flex items-center justify-center text-white font-extrabold shadow-sm">
-          <span className="text-sm">⚡</span>
-        </div>
-        <h1 className="font-extrabold text-lg text-black tracking-tight">SwiftPOS</h1>
+      <div className="flex items-center gap-2.5">
+        <img src="/logo.png" alt="SwiftScan" className="w-8 h-8 rounded-lg object-cover shadow-sm border border-neutral-200" />
+        <h1 className="font-extrabold text-lg text-black tracking-tight">SwiftScan</h1>
       </div>
 
       {/* Middle: Global Search Input */}
