@@ -57,5 +57,27 @@ namespace POS.API.Controllers
             var worker = await _authService.RegisterWorkerAsync(dto);
             return CreatedAtAction(nameof(GetCurrentUser), new { id = worker.Id }, worker);
         }
+
+        [HttpGet("workers")]
+        [Authorize(Roles = "Owner")]
+        public async Task<IActionResult> GetWorkers()
+        {
+            var workers = await _authService.GetWorkersAsync();
+            return Ok(workers);
+        }
+
+        [HttpPatch("workers/{id:int}/toggle-status")]
+        [Authorize(Roles = "Owner")]
+        public async Task<IActionResult> ToggleWorkerStatus(int id)
+        {
+            var updated = await _authService.ToggleWorkerStatusAsync(id);
+            if (updated == null)
+            {
+                return NotFound(new { title = "Not Found", detail = $"Worker account with ID {id} was not found" });
+            }
+
+            return Ok(updated);
+        }
     }
 }
+

@@ -119,16 +119,16 @@ export default function Sidebar() {
       </aside>
 
       {/* MOBILE BOTTOM NAV */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-neutral-200 z-50 text-neutral-600 px-2 py-1.5 flex items-center justify-around shadow-2xl">
-        {NAV_ITEMS.slice(0, 5).map((item) => {
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-neutral-200 z-50 text-neutral-600 px-3 py-1.5 flex items-center gap-2 overflow-x-auto scrollbar-none shadow-2xl">
+        {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
           return (
             <NavLink
               key={item.path}
               to={item.path}
               className={({ isActive }) =>
-                `flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl text-[10px] font-bold transition-all relative ${
-                  isActive ? 'text-black font-extrabold' : 'hover:text-neutral-900'
+                `flex flex-col items-center gap-1 py-1 px-3 rounded-xl text-[10px] font-bold transition-all shrink-0 relative ${
+                  isActive ? 'text-black font-extrabold bg-neutral-100' : 'hover:text-neutral-900'
                 }`
               }
             >

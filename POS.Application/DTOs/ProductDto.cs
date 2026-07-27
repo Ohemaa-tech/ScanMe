@@ -50,6 +50,9 @@ namespace POS.Application.DTOs
         public string? ImageUrl { get; set; }
 
         public List<CreateProductUnitDto> Units { get; set; } = new();
+
+        public int InitialBaseStock { get; set; } = 0;
+        public int LowStockThreshold { get; set; } = 10;
     }
 
     public class ProductUnitResponseDto

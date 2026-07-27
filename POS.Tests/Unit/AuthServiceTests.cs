@@ -131,5 +131,52 @@ namespace POS.Tests.Unit
                 u.Role == UserRole.Worker &&
                 BCrypt.Net.BCrypt.Verify("WorkerPassword123!", u.PasswordHash))), Times.Once);
         }
+
+        [Fact]
+        public async Task GetWorkersAsync_ReturnsListOfWorkerProfiles()
+        {
+            // Arrange
+            var workers = new System.Collections.Generic.List<User>
+            {
+                new User { Id = 2, Username = "worker1", Role = UserRole.Worker, IsActive = true },
+                new User { Id = 3, Username = "worker2", Role = UserRole.Worker, IsActive = false }
+            };
+
+            _userRepoMock.Setup(r => r.GetWorkersAsync()).ReturnsAsync(workers);
+
+            // Act
+            var result = await _authService.GetWorkersAsync();
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Equal(2, result.Count);
+            Assert.Equal("worker1", result[0].Username);
+            Assert.True(result[0].IsActive);
+            Assert.Equal("worker2", result[1].Username);
+            Assert.False(result[1].IsActive);
+        }
+
+        [Fact]
+        public async Task ToggleWorkerStatusAsync_ValidWorker_TogglesStatus()
+        {
+            // Arrange
+            var worker = new User { Id = 2, Username = "worker1", Role = UserRole.Worker, IsActive = true };
+            var toggledWorker = new User { Id = 2, Username = "worker1", Role = UserRole.Worker, IsActive = false };
+
+            _userRepoMock.SetupSequence(r => r.GetByIdAsync(2))
+                .ReturnsAsync(worker)
+                .ReturnsAsync(toggledWorker);
+
+            _userRepoMock.Setup(r => r.ToggleUserStatusAsync(2)).ReturnsAsync(true);
+
+            // Act
+            var result = await _authService.ToggleWorkerStatusAsync(2);
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.False(result.IsActive);
+            _userRepoMock.Verify(r => r.ToggleUserStatusAsync(2), Times.Once);
+        }
     }
 }
+

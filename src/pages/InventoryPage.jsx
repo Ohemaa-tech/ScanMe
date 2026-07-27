@@ -10,12 +10,17 @@ import {
   X, Loader2, RefreshCw,
 } from 'lucide-react';
 
-export default function InventoryPage() {
+export default function InventoryPage({ globalSearch = '' }) {
   const { isOwner } = useAuth();
 
   const [inventory, setInventory] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(globalSearch);
+
+  useEffect(() => {
+    setSearchTerm(globalSearch);
+  }, [globalSearch]);
+
   const [statusFilter, setStatusFilter] = useState('');
   const [toast, setToast] = useState(null);
   const [page, setPage] = useState(1);

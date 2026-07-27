@@ -26,7 +26,7 @@ function MainLayout({ globalSearch, setGlobalSearch }) {
             {/* General Authenticated Routes (Owner & Worker) */}
             <Route path="/scan" element={<ScanPage />} />
             <Route path="/checkout" element={<CheckoutPage />} />
-            <Route path="/inventory" element={<InventoryPage />} />
+            <Route path="/inventory" element={<InventoryPage globalSearch={globalSearch} />} />
             <Route path="/alerts" element={<AlertsPage />} />
 
             {/* Owner-Only Protected Routes */}
@@ -34,10 +34,11 @@ function MainLayout({ globalSearch, setGlobalSearch }) {
               path="/products"
               element={
                 <ProtectedRoute allowedRoles={['Owner']}>
-                  <ProductsPage />
+                  <ProductsPage globalSearch={globalSearch} />
                 </ProtectedRoute>
               }
             />
+
             <Route
               path="/analytics"
               element={

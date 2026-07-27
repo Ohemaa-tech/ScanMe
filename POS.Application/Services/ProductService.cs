@@ -119,6 +119,23 @@ namespace POS.Application.Services
             product.ImageUrl = dto.ImageUrl;
             product.UpdatedAt = DateTime.UtcNow;
 
+            if (product.Inventory != null)
+            {
+                product.Inventory.Quantity = dto.InitialBaseStock;
+                product.Inventory.LowStockThreshold = dto.LowStockThreshold;
+                product.Inventory.LastUpdatedAt = DateTime.UtcNow;
+            }
+            else
+            {
+                product.Inventory = new Inventory
+                {
+                    ProductId = product.Id,
+                    Quantity = dto.InitialBaseStock,
+                    LowStockThreshold = dto.LowStockThreshold,
+                    LastUpdatedAt = DateTime.UtcNow
+                };
+            }
+
             await _productRepository.UpdateProductAsync(product);
             return MapToResponseDto(product);
         }

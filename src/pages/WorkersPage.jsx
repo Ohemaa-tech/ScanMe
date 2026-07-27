@@ -4,7 +4,7 @@ import { authApi } from '../api/authApi';
 import { useAuthStore } from '../store/authStore';
 import {
   UserPlus, Users, CheckCircle2, AlertTriangle,
-  Loader2, ShieldCheck, Eye, EyeOff,
+  Loader2, ShieldCheck, Eye, EyeOff, Power, RefreshCw,
 } from 'lucide-react';
 
 const EMPTY_FORM = { username: '', email: '', password: '', fullName: '' };
@@ -24,22 +24,42 @@ export default function WorkersPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [toast, setToast] = useState(null);
   const [workers, setWorkers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [togglingId, setTogglingId] = useState(null);
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3500);
   };
 
+  const fetchWorkers = async () => {
+    setLoading(true);
+    try {
+      const data = await authApi.getWorkers();
+      setWorkers(Array.isArray(data) ? data : []);
+    } catch (err) {
+      showToast('Failed to load worker accounts', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user?.role === 'Owner') {
+      fetchWorkers();
+    }
+  }, [user]);
+
   const handleCreateWorker = async (e) => {
     e.preventDefault();
     setSaving(true);
     setFormError(null);
     try {
-      const newWorker = await authApi.registerWorker(formData);
-      setWorkers((prev) => [...prev, newWorker]);
+      await authApi.registerWorker(formData);
       setIsModalOpen(false);
       setFormData(EMPTY_FORM);
       showToast(`Worker "${formData.username}" created successfully`);
+      fetchWorkers();
     } catch (err) {
       const msg =
         err?.response?.data?.detail ||
@@ -48,6 +68,21 @@ export default function WorkersPage() {
       setFormError(msg);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleToggleStatus = async (workerId, currentStatus, username) => {
+    setTogglingId(workerId);
+    try {
+      const updated = await authApi.toggleWorkerStatus(workerId);
+      setWorkers((prev) =>
+        prev.map((w) => (w.id === workerId ? { ...w, isActive: updated.isActive } : w))
+      );
+      showToast(`Worker "${username}" is now ${updated.isActive ? 'Active' : 'Inactive'}`);
+    } catch (err) {
+      showToast('Failed to update worker status', 'error');
+    } finally {
+      setTogglingId(null);
     }
   };
 
@@ -68,12 +103,20 @@ export default function WorkersPage() {
           </h2>
           <p className="text-xs text-slate-500">Manage your store's cashier and worker logins</p>
         </div>
-        <button
-          onClick={() => { setIsModalOpen(true); setFormData(EMPTY_FORM); setFormError(null); }}
-          className="flex items-center gap-2 bg-black hover:bg-neutral-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md transition-all"
-        >
-          <UserPlus className="w-4 h-4" /> Add Worker
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={fetchWorkers}
+            className="flex items-center gap-1.5 text-xs font-semibold border border-neutral-200 px-3 py-2.5 rounded-xl hover:bg-neutral-100 transition-colors"
+          >
+            <RefreshCw className="w-3.5 h-3.5" /> Refresh
+          </button>
+          <button
+            onClick={() => { setIsModalOpen(true); setFormData(EMPTY_FORM); setFormError(null); }}
+            className="flex items-center gap-2 bg-black hover:bg-neutral-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md transition-all"
+          >
+            <UserPlus className="w-4 h-4" /> Add Worker
+          </button>
+        </div>
       </div>
 
       {/* Info Card */}
@@ -89,36 +132,61 @@ export default function WorkersPage() {
       </div>
 
       {/* Created Workers List */}
-      {workers.length > 0 && (
+      {loading ? (
+        <div className="flex items-center justify-center py-20 gap-3 text-neutral-400">
+          <Loader2 className="w-6 h-6 animate-spin" />
+          <span className="text-sm">Loading worker accounts...</span>
+        </div>
+      ) : workers.length > 0 ? (
         <div className="bg-white rounded-2xl border border-neutral-200 shadow-xs overflow-hidden">
-          <div className="px-5 py-3 border-b border-neutral-100 bg-neutral-50">
-            <h3 className="text-xs font-bold text-neutral-600 uppercase tracking-wider">Created This Session</h3>
+          <div className="px-5 py-3 border-b border-neutral-100 bg-neutral-50 flex items-center justify-between">
+            <h3 className="text-xs font-bold text-neutral-600 uppercase tracking-wider">Registered Workers ({workers.length})</h3>
           </div>
           <div className="divide-y divide-neutral-100">
             {workers.map((w) => (
               <div key={w.id} className="flex items-center justify-between px-5 py-3.5">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 bg-black text-white rounded-xl flex items-center justify-center font-extrabold text-sm">
+                  <div className={`w-9 h-9 text-white rounded-xl flex items-center justify-center font-extrabold text-sm ${w.isActive ? 'bg-black' : 'bg-neutral-400'}`}>
                     {(w.fullName || w.username || 'W')[0].toUpperCase()}
                   </div>
                   <div>
-                    <p className="font-bold text-sm text-slate-900">{w.fullName || w.username}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-bold text-sm text-slate-900">{w.fullName || w.username}</p>
+                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${w.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-neutral-100 text-neutral-500'}`}>
+                        {w.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
                     <p className="text-[11px] text-neutral-400">@{w.username} · {w.email}</p>
                   </div>
                 </div>
-                <span className="text-[10px] font-bold bg-neutral-100 border border-neutral-200 px-2.5 py-1 rounded-full text-neutral-600">
-                  Worker
-                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleToggleStatus(w.id, w.isActive, w.username)}
+                    disabled={togglingId === w.id}
+                    className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl border transition-colors ${
+                      w.isActive
+                        ? 'border-amber-200 text-amber-700 hover:bg-amber-50'
+                        : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50'
+                    }`}
+                  >
+                    {togglingId === w.id ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <>
+                        <Power className="w-3 h-3" />
+                        {w.isActive ? 'Deactivate' : 'Activate'}
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             ))}
           </div>
         </div>
-      )}
-
-      {workers.length === 0 && (
+      ) : (
         <div className="text-center py-20 text-neutral-400">
           <Users className="w-12 h-12 mx-auto mb-3 opacity-30" />
-          <p className="text-sm font-medium">No workers created yet</p>
+          <p className="text-sm font-medium">No workers registered yet</p>
           <p className="text-xs mt-1">Click "Add Worker" to create a cashier account</p>
         </div>
       )}
@@ -204,3 +272,4 @@ export default function WorkersPage() {
     </div>
   );
 }
+

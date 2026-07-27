@@ -10,4 +10,11 @@ export const authApi = {
 
   // POST /api/auth/register-worker → created worker profile
   registerWorker: (data) => axiosClient.post('/auth/register-worker', data),
+
+  // GET /api/auth/workers → worker profiles list (Owner only)
+  getWorkers: () => axiosClient.get('/auth/workers'),
+
+  // PATCH /api/auth/workers/{id}/toggle-status → toggled worker profile
+  toggleWorkerStatus: (id) => axiosClient.patch(`/auth/workers/${id}/toggle-status`),
 };
+

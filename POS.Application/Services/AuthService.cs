@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
+using System.Linq;
 using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
@@ -17,6 +19,8 @@ namespace POS.Application.Services
         Task<LoginResponseDto?> AuthenticateAsync(LoginRequestDto loginDto);
         Task<UserProfileDto> RegisterWorkerAsync(RegisterWorkerDto dto);
         Task<UserProfileDto?> GetUserProfileAsync(int userId);
+        Task<List<UserProfileDto>> GetWorkersAsync();
+        Task<UserProfileDto?> ToggleWorkerStatusAsync(int workerId);
     }
 
     public class AuthService : IAuthService
@@ -110,6 +114,44 @@ namespace POS.Application.Services
                 IsActive = user.IsActive
             };
         }
+
+        public async Task<List<UserProfileDto>> GetWorkersAsync()
+        {
+            var workers = await _userRepository.GetWorkersAsync();
+            return workers.Select(w => new UserProfileDto
+            {
+                Id = w.Id,
+                Username = w.Username,
+                Email = w.Email,
+                FullName = w.FullName,
+                Role = w.Role.ToString(),
+                IsActive = w.IsActive
+            }).ToList();
+        }
+
+        public async Task<UserProfileDto?> ToggleWorkerStatusAsync(int workerId)
+        {
+            var worker = await _userRepository.GetByIdAsync(workerId);
+            if (worker == null || worker.Role != UserRole.Worker)
+            {
+                return null;
+            }
+
+            await _userRepository.ToggleUserStatusAsync(workerId);
+            var updated = await _userRepository.GetByIdAsync(workerId);
+            if (updated == null) return null;
+
+            return new UserProfileDto
+            {
+                Id = updated.Id,
+                Username = updated.Username,
+                Email = updated.Email,
+                FullName = updated.FullName,
+                Role = updated.Role.ToString(),
+                IsActive = updated.IsActive
+            };
+        }
+
 
         private string GenerateJwtToken(User user)
         {

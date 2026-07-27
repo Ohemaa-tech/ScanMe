@@ -12,22 +12,36 @@ namespace POS.Infrastructure.Data.Seed
         {
             await context.Database.EnsureCreatedAsync();
 
-            if (!await context.Users.AnyAsync())
+            async Task UpsertUser(string username, string email, string fullName, string rawPassword, UserRole role)
             {
-                var owner = new User
+                var existing = await context.Users.FirstOrDefaultAsync(u => u.Username.ToLower() == username.ToLower());
+                if (existing == null)
                 {
-                    Username = "owner",
-                    Email = "owner@scanme.com",
-                    FullName = "Store Owner",
-                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("Owner123!"),
-                    Role = UserRole.Owner,
-                    IsActive = true,
-                    CreatedAt = DateTime.UtcNow
-                };
-
-                await context.Users.AddAsync(owner);
-                await context.SaveChangesAsync();
+                    var user = new User
+                    {
+                        Username = username,
+                        Email = email,
+                        FullName = fullName,
+                        PasswordHash = BCrypt.Net.BCrypt.HashPassword(rawPassword),
+                        Role = role,
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    await context.Users.AddAsync(user);
+                }
+                else
+                {
+                    existing.PasswordHash = BCrypt.Net.BCrypt.HashPassword(rawPassword);
+                    existing.IsActive = true;
+                    context.Users.Update(existing);
+                }
             }
+
+            await UpsertUser("admin", "admin@scanme.com", "Store Owner", "admin123", UserRole.Owner);
+            await UpsertUser("owner", "owner@scanme.com", "Store Owner", "Owner123!", UserRole.Owner);
+            await UpsertUser("worker1", "worker1@scanme.com", "Cashier John", "worker123", UserRole.Worker);
+
+            await context.SaveChangesAsync();
         }
     }
 }

@@ -1,6 +1,9 @@
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using POS.Core.Entities;
+using POS.Core.Enums;
 using POS.Core.Interfaces;
 using POS.Infrastructure.Data;
 
@@ -32,6 +35,14 @@ namespace POS.Infrastructure.Repositories
                 .FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower());
         }
 
+        public async Task<List<User>> GetWorkersAsync()
+        {
+            return await _context.Users
+                .Where(u => u.Role == UserRole.Worker)
+                .OrderByDescending(u => u.CreatedAt)
+                .ToListAsync();
+        }
+
         public async Task<User> CreateUserAsync(User user)
         {
             await _context.Users.AddAsync(user);
@@ -44,5 +55,16 @@ namespace POS.Infrastructure.Repositories
             _context.Users.Update(user);
             await _context.SaveChangesAsync();
         }
+
+        public async Task<bool> ToggleUserStatusAsync(int userId)
+        {
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null) return false;
+
+            user.IsActive = !user.IsActive;
+            await _context.SaveChangesAsync();
+            return true;
+        }
     }
 }
+

@@ -11,7 +11,7 @@ const storedUser = (() => {
   }
 })();
 
-export const useAuthStore = create((set) => ({
+export const useAuthStore = create((set, get) => ({
   token: storedToken,
   user: storedUser,
   isAuthenticated: !!storedToken && !!storedUser,
@@ -33,13 +33,18 @@ export const useAuthStore = create((set) => ({
       set({ token, user: userObj, isAuthenticated: true, loading: false, error: null });
       return true;
     } catch (err) {
-      const msg =
-        err?.response?.data?.detail ||
-        err?.response?.data?.title ||
-        'Invalid username or password';
+      let msg = 'Invalid username or password';
+      if (!err.response) {
+        msg = `Backend server unreachable at http://${window.location.hostname}:5000. Please allow Port 5000 in Windows Firewall.`;
+      } else if (err.response?.data?.detail) {
+        msg = err.response.data.detail;
+      } else if (err.response?.data?.title) {
+        msg = err.response.data.title;
+      }
       set({ error: msg, loading: false });
       return false;
     }
+
   },
 
   logout: () => {
@@ -50,7 +55,8 @@ export const useAuthStore = create((set) => ({
 
   // Helper: check if current user has a specific role
   hasRole: (role) => {
-    const user = storedUser;
+    const user = get().user;
     return user?.role === role;
   },
 }));
+
