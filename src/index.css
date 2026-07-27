@@ -1,24 +1,16 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
-@theme {
-  --color-brand-navy: #FAFAFA;
-  --color-brand-dark: #0A0A0A;
-  --color-brand-blue: #000000;
-  --color-status-success: #000000;
-  --color-status-warning: #737373;
-  --color-status-danger: #404040;
-  --color-surface: #FAFAFA;
-
-  --font-sans: 'Inter', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
-}
-
 body {
   background-color: #FAFAFA;
   color: #0A0A0A;
-  font-family: var(--font-sans);
+  font-family: 'Inter', sans-serif;
   min-height: 100vh;
+}
+
+html, body, button, input, select, textarea, a {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Custom Scan line animation (White Monochrome Glow) */

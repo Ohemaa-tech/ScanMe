@@ -23,6 +23,7 @@ export default function ScanPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [recentScans, setRecentScans] = useState([]);
+  const lastScanBarcodeRef = React.useRef({ code: '', time: 0 });
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type });
@@ -30,7 +31,13 @@ export default function ScanPage() {
   };
 
   const handleBarcodeScan = useCallback(async (barcode) => {
-    if (loading) return;
+    if (!barcode) return;
+    const now = Date.now();
+    if (lastScanBarcodeRef.current.code === barcode && now - lastScanBarcodeRef.current.time < 2500) {
+      return;
+    }
+    lastScanBarcodeRef.current = { code: barcode, time: now };
+
     setLoading(true);
     setError(null);
     try {
@@ -43,7 +50,7 @@ export default function ScanPage() {
 
       setRecentScans((prev) => [
         { barcode, productName: product.name, unitName: unit.unitName, price: unit.price },
-        ...prev.slice(0, 4),
+        ...prev.filter((item) => item.barcode !== barcode).slice(0, 4),
       ]);
       showToast(`Scanned: ${product.name} (${unit.unitName})`);
     } catch (err) {
@@ -53,7 +60,7 @@ export default function ScanPage() {
     } finally {
       setLoading(false);
     }
-  }, [loading]);
+  }, []);
 
   const handleAddToCart = () => {
     if (!scannedProduct || !selectedUnit) return;

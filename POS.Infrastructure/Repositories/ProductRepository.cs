@@ -28,9 +28,17 @@ namespace POS.Infrastructure.Repositories
             if (!string.IsNullOrWhiteSpace(search))
             {
                 var term = search.Trim().ToLower();
+                var cleanShift = term.Replace("!", "1").Replace("@", "2").Replace("#", "3").Replace("$", "4").Replace("%", "5").Replace("^", "6").Replace("&", "7").Replace("*", "8").Replace("(", "9").Replace(")", "0");
+                var cleanShiftAlt = term.Replace("!", "5");
+                var digitsOnly = System.Text.RegularExpressions.Regex.Replace(term, @"\D", "");
+                var digitSuffix = digitsOnly.Length >= 5 ? digitsOnly.Substring(digitsOnly.Length - 5) : digitsOnly;
+                
                 query = query.Where(p => p.Name.ToLower().Contains(term) ||
                                          (p.Brand != null && p.Brand.ToLower().Contains(term)) ||
-                                         p.Units.Any(u => u.Barcode.Contains(term)));
+                                         p.Units.Any(u => u.Barcode.ToLower().Contains(term) || 
+                                                          u.Barcode.ToLower().Contains(cleanShift) ||
+                                                          u.Barcode.ToLower().Contains(cleanShiftAlt) ||
+                                                          (!string.IsNullOrEmpty(digitSuffix) && u.Barcode.Contains(digitSuffix))));
             }
 
             if (!string.IsNullOrWhiteSpace(category))
@@ -51,10 +59,13 @@ namespace POS.Infrastructure.Repositories
 
         public async Task<ProductUnit?> GetProductUnitByBarcodeAsync(string barcode)
         {
+            var clean = barcode?.Trim().ToLower();
+            if (string.IsNullOrEmpty(clean)) return null;
+
             return await _context.ProductUnits
                 .Include(pu => pu.Product)
                     .ThenInclude(p => p!.Inventory)
-                .FirstOrDefaultAsync(pu => pu.Barcode == barcode && pu.Product!.IsActive);
+                .FirstOrDefaultAsync(pu => pu.Barcode.Trim().ToLower() == clean && pu.Product!.IsActive);
         }
 
         public async Task<ProductUnit?> GetProductUnitByIdAsync(int unitId)
@@ -95,7 +106,10 @@ namespace POS.Infrastructure.Repositories
 
         public async Task<bool> BarcodeExistsAsync(string barcode)
         {
-            return await _context.ProductUnits.AnyAsync(pu => pu.Barcode == barcode);
+            var clean = barcode?.Trim().ToLower();
+            if (string.IsNullOrEmpty(clean)) return false;
+
+            return await _context.ProductUnits.AnyAsync(pu => pu.Barcode.Trim().ToLower() == clean);
         }
     }
 }

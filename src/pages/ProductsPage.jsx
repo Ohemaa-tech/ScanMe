@@ -4,8 +4,9 @@ import { productsApi } from '../api/productsApi';
 import useAuth from '../hooks/useAuth';
 import StockBadge from '../components/StockBadge';
 import ProductAutoFillModal from '../components/ProductAutoFillModal';
+import BarcodeScanner from '../components/BarcodeScanner';
 import {
-  Plus, Search, Edit3, Trash2, X,
+  Plus, Search, Edit3, Trash2, X, Camera, ScanLine,
   Boxes, ChevronLeft, ChevronRight, AlertTriangle,
   CheckCircle2, Package, Loader2,
 } from 'lucide-react';
@@ -16,12 +17,19 @@ const EMPTY_FORM = {
   units: [{ unitName: 'Single', barcode: '', conversionFactor: 1, price: '', isDefault: true }],
 };
 
-export default function ProductsPage() {
+export default function ProductsPage({ globalSearch = '' }) {
   const { isOwner } = useAuth();
 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(globalSearch);
+  const [showSearchScanner, setShowSearchScanner] = useState(false);
+  const [activeUnitScanIdx, setActiveUnitScanIdx] = useState(null);
+
+  useEffect(() => {
+    setSearchTerm(globalSearch);
+  }, [globalSearch]);
+
   const [toast, setToast] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
@@ -38,11 +46,22 @@ export default function ProductsPage() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const fetchProducts = async () => {
+  const fetchProducts = async (queryTerm = '') => {
     setLoading(true);
     try {
-      const data = await productsApi.getAll({ search: searchTerm || undefined });
-      setProducts(Array.isArray(data) ? data : []);
+      const data = await productsApi.getAll({ search: queryTerm || undefined });
+      if (Array.isArray(data)) {
+        if (!queryTerm) {
+          setProducts(data);
+        } else {
+          // Merge search results into catalog without wiping out loaded products
+          setProducts((prev) => {
+            const map = new Map(prev.map((p) => [p.id, p]));
+            data.forEach((p) => map.set(p.id, p));
+            return Array.from(map.values());
+          });
+        }
+      }
     } catch {
       showToast('Failed to load products', 'error');
     } finally {
@@ -52,7 +71,7 @@ export default function ProductsPage() {
 
   useEffect(() => { fetchProducts(); }, []);
   useEffect(() => {
-    const t = setTimeout(fetchProducts, 400);
+    const t = setTimeout(() => fetchProducts(searchTerm), 400);
     return () => clearTimeout(t);
   }, [searchTerm]);
 
@@ -103,6 +122,27 @@ export default function ProductsPage() {
     e.preventDefault();
     setSaving(true);
     setFormError(null);
+
+    // Pre-validate product units
+    for (let i = 0; i < formData.units.length; i++) {
+      const u = formData.units[i];
+      if (!u.unitName || !u.unitName.trim()) {
+        setFormError(`Packaging Unit #${i + 1} is missing a Unit Name.`);
+        setSaving(false);
+        return;
+      }
+      if (!u.barcode || !u.barcode.trim()) {
+        setFormError(`Packaging Unit #${i + 1} (${u.unitName}) is missing a Barcode.`);
+        setSaving(false);
+        return;
+      }
+      if (u.price === '' || u.price === null || isNaN(Number(u.price))) {
+        setFormError(`Packaging Unit #${i + 1} (${u.unitName}) is missing a valid Price.`);
+        setSaving(false);
+        return;
+      }
+    }
+
     try {
       const payload = {
         name: formData.name,
@@ -111,13 +151,13 @@ export default function ProductsPage() {
         brand: formData.brand || null,
         description: formData.description || null,
         imageUrl: formData.imageUrl || null,
-        initialBaseStock: Number(formData.initialBaseStock),
-        lowStockThreshold: Number(formData.lowStockThreshold),
+        initialBaseStock: Number(formData.initialBaseStock) || 0,
+        lowStockThreshold: Number(formData.lowStockThreshold) || 10,
         units: formData.units.map((u) => ({
-          unitName: u.unitName,
-          barcode: u.barcode,
-          conversionFactor: Number(u.conversionFactor),
-          price: Number(u.price),
+          unitName: u.unitName.trim(),
+          barcode: u.barcode.trim(),
+          conversionFactor: Number(u.conversionFactor) || 1,
+          price: Number(u.price) || 0,
           isDefault: u.isDefault,
         })),
       };
@@ -166,10 +206,52 @@ export default function ProductsPage() {
     }));
   };
 
-  const filtered = products.filter((p) =>
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (p.category || '').toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filtered = products.filter((p) => {
+    const rawTerm = searchTerm.trim().toLowerCase();
+    if (!rawTerm) return true;
+
+    // 1. Map keyboard shift characters (! -> 1, @ -> 2, # -> 3, $ -> 4, % -> 5, ^ -> 6, & -> 7, * -> 8, ( -> 9, ) -> 0)
+    const unshiftedTerm = rawTerm
+      .replace(/!/g, '1')
+      .replace(/@/g, '2')
+      .replace(/#/g, '3')
+      .replace(/\$/g, '4')
+      .replace(/%/g, '5')
+      .replace(/\^/g, '6')
+      .replace(/&/g, '7')
+      .replace(/\*/g, '8')
+      .replace(/\(/g, '9')
+      .replace(/\)/g, '0');
+
+    const unshiftedAlt = rawTerm.replace(/!/g, '5');
+    const digitsOnlyQuery = rawTerm.replace(/\D/g, '');
+
+    return (
+      p.name.toLowerCase().includes(rawTerm) ||
+      (p.brand || '').toLowerCase().includes(rawTerm) ||
+      (p.category || '').toLowerCase().includes(rawTerm) ||
+      p.units?.some((u) => {
+        const bc = (u.barcode || '').toLowerCase();
+        if (!bc) return false;
+        const bcDigits = bc.replace(/\D/g, '');
+
+        // Check 1-digit typo tolerance for long barcodes
+        const isTypoMatch =
+          digitsOnlyQuery.length >= 8 &&
+          bcDigits.length >= 8 &&
+          Math.abs(bcDigits.length - digitsOnlyQuery.length) <= 1 &&
+          [...bcDigits].filter((ch, idx) => ch !== digitsOnlyQuery[idx]).length <= 1;
+
+        return (
+          bc.includes(rawTerm) ||
+          bc.includes(unshiftedTerm) ||
+          bc.includes(unshiftedAlt) ||
+          (digitsOnlyQuery.length >= 3 && bcDigits.includes(digitsOnlyQuery)) ||
+          isTypoMatch
+        );
+      })
+    );
+  });
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
   const paged = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
@@ -195,15 +277,61 @@ export default function ProductsPage() {
         )}
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-        <input
-          value={searchTerm}
-          onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
-          placeholder="Search products..."
-          className="w-full bg-white border border-neutral-200 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-black transition-all"
-        />
+      {/* Search Bar with Camera Scanner Button */}
+      <div className="space-y-3">
+        <div className="relative flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              value={searchTerm}
+              onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+              placeholder="Search products by name, category, or barcode..."
+              className="w-full bg-white border border-neutral-200 rounded-xl pl-10 pr-10 py-2.5 text-sm focus:outline-none focus:border-black transition-all"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-black p-1"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          <button
+            onClick={() => setShowSearchScanner(!showSearchScanner)}
+            className={`flex items-center gap-1.5 text-xs font-bold px-4 py-2.5 rounded-xl border transition-all shrink-0 ${
+              showSearchScanner
+                ? 'bg-red-50 text-red-600 border-red-200'
+                : 'bg-white text-black border-neutral-200 hover:bg-neutral-100 shadow-xs'
+            }`}
+          >
+            {showSearchScanner ? (
+              <>
+                <X className="w-4 h-4" />
+                <span>Close</span>
+              </>
+            ) : (
+              <>
+                <Camera className="w-4 h-4" />
+                <span>Scan Barcode</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {showSearchScanner && (
+          <div className="relative rounded-3xl overflow-hidden border border-neutral-300 shadow-xl max-w-xl mx-auto">
+            <BarcodeScanner
+              onScan={(scannedCode) => {
+                setSearchTerm(scannedCode);
+                setPage(1);
+                setShowSearchScanner(false);
+                showToast(`Filtered by barcode: ${scannedCode}`);
+              }}
+            />
+          </div>
+        )}
       </div>
 
       {/* Product Grid */}
@@ -272,9 +400,10 @@ export default function ProductsPage() {
 
       {/* Create / Edit Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-start justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl my-8">
-            <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-neutral-200">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4">
+          <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-neutral-200 shrink-0">
               <h3 className="text-base font-extrabold text-slate-900">
                 {editingProduct ? 'Edit Product' : 'Add New Product'}
               </h3>
@@ -283,82 +412,105 @@ export default function ProductsPage() {
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="p-6 space-y-5">
-              {/* External Barcode Lookup Component */}
-              {!editingProduct && (
-                <ProductAutoFillModal
-                  onAutoFill={handleAutoFillData}
-                  onError={(err) => showToast(err, 'error')}
-                />
-              )}
+            <form onSubmit={handleSave} noValidate className="flex flex-col flex-1 min-h-0">
+              {/* Scrollable Form Body */}
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 overscroll-contain">
+                {/* External Barcode Lookup Component */}
+                {!editingProduct && (
+                  <ProductAutoFillModal
+                    onAutoFill={handleAutoFillData}
+                    onError={(err) => showToast(err, 'error')}
+                  />
+                )}
 
-
-              {formError && (
-                <div className="bg-red-50 border border-red-200 text-red-700 text-xs px-4 py-2.5 rounded-xl flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 shrink-0" /> {formError}
-                </div>
-              )}
-
-              {/* Basic Fields */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {[
-                  { label: 'Product Name *', key: 'name', required: true, full: true },
-                  { label: 'Base Unit Name', key: 'baseUnitName', placeholder: 'Piece, Bottle, Kg...' },
-                  { label: 'Category', key: 'category' },
-                  { label: 'Brand', key: 'brand' },
-                  { label: 'Image URL', key: 'imageUrl', full: true },
-                  { label: 'Initial Base Stock', key: 'initialBaseStock', type: 'number' },
-                  { label: 'Low Stock Threshold', key: 'lowStockThreshold', type: 'number' },
-                ].map(({ label, key, required, full, type = 'text', placeholder }) => (
-                  <div key={key} className={full ? 'sm:col-span-2' : ''}>
-                    <label className="text-xs font-semibold text-neutral-700 block mb-1">{label}</label>
-                    <input
-                      type={type}
-                      required={required}
-                      value={formData[key]}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, [key]: e.target.value }))}
-                      placeholder={placeholder}
-                      className="w-full border border-neutral-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-black"
-                    />
+                {formError && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 text-xs px-4 py-2.5 rounded-xl flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 shrink-0" /> {formError}
                   </div>
-                ))}
-              </div>
+                )}
 
-              {/* Packaging Units */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-bold text-neutral-700">Packaging Units (Barcodes)</p>
-                  <button type="button" onClick={addUnit} className="text-xs font-bold text-black underline">+ Add Unit</button>
-                </div>
-                {formData.units.map((unit, idx) => (
-                  <div key={idx} className="bg-neutral-50 border border-neutral-200 rounded-2xl p-4 space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-[11px] font-semibold text-neutral-600 block mb-1">Unit Name</label>
-                        <input value={unit.unitName} onChange={(e) => updateUnit(idx, 'unitName', e.target.value)} placeholder="e.g. Single, Carton of 24" className="w-full border border-neutral-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-black" required />
-                      </div>
-                      <div>
-                        <label className="text-[11px] font-semibold text-neutral-600 block mb-1">Barcode</label>
-                        <input value={unit.barcode} onChange={(e) => updateUnit(idx, 'barcode', e.target.value)} placeholder="Scan or enter barcode" className="w-full border border-neutral-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-black" required />
-                      </div>
-                      <div>
-                        <label className="text-[11px] font-semibold text-neutral-600 block mb-1">Conversion Factor</label>
-                        <input type="number" min="1" value={unit.conversionFactor} onChange={(e) => updateUnit(idx, 'conversionFactor', e.target.value)} className="w-full border border-neutral-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-black" required />
-                      </div>
-                      <div>
-                        <label className="text-[11px] font-semibold text-neutral-600 block mb-1">Price</label>
-                        <input type="number" step="0.01" min="0" value={unit.price} onChange={(e) => updateUnit(idx, 'price', e.target.value)} placeholder="0.00" className="w-full border border-neutral-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-black" required />
-                      </div>
+                {/* Basic Fields */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {[
+                    { label: 'Product Name *', key: 'name', required: true, full: true },
+                    { label: 'Base Unit Name', key: 'baseUnitName', placeholder: 'Piece, Bottle, Kg...' },
+                    { label: 'Category', key: 'category' },
+                    { label: 'Brand', key: 'brand' },
+                    { label: 'Image URL', key: 'imageUrl', full: true },
+                    { label: 'Initial Base Stock', key: 'initialBaseStock', type: 'number' },
+                    { label: 'Low Stock Threshold', key: 'lowStockThreshold', type: 'number' },
+                  ].map(({ label, key, required, full, type = 'text', placeholder }) => (
+                    <div key={key} className={full ? 'sm:col-span-2' : ''}>
+                      <label className="text-xs font-semibold text-neutral-700 block mb-1">{label}</label>
+                      <input
+                        type={type}
+                        required={required}
+                        value={formData[key]}
+                        onChange={(e) => setFormData((prev) => ({ ...prev, [key]: e.target.value }))}
+                        placeholder={placeholder}
+                        className="w-full border border-neutral-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-black"
+                      />
                     </div>
-                    {formData.units.length > 1 && (
-                      <button type="button" onClick={() => removeUnit(idx)} className="text-xs text-red-500 hover:text-red-700 font-semibold">Remove unit</button>
-                    )}
+                  ))}
+                </div>
+
+                {/* Packaging Units */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-bold text-neutral-700">Packaging Units (Barcodes)</p>
+                    <button type="button" onClick={addUnit} className="text-xs font-bold text-black underline">+ Add Unit</button>
                   </div>
-                ))}
+                  {formData.units.map((unit, idx) => (
+                    <div key={idx} className="bg-neutral-50 border border-neutral-200 rounded-2xl p-4 space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[11px] font-semibold text-neutral-600 block mb-1">Unit Name *</label>
+                          <input value={unit.unitName} onChange={(e) => updateUnit(idx, 'unitName', e.target.value)} placeholder="e.g. Single, Carton of 24" className="w-full border border-neutral-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-black" />
+                        </div>
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-[11px] font-semibold text-neutral-600 block">Barcode *</label>
+                            <button
+                              type="button"
+                              onClick={() => setActiveUnitScanIdx(activeUnitScanIdx === idx ? null : idx)}
+                              className="text-[10px] font-bold text-black flex items-center gap-1 hover:underline"
+                            >
+                              <Camera className="w-3 h-3" />
+                              {activeUnitScanIdx === idx ? 'Close Camera' : 'Scan Barcode'}
+                            </button>
+                          </div>
+                          <input value={unit.barcode} onChange={(e) => updateUnit(idx, 'barcode', e.target.value)} placeholder="Scan or enter barcode" className="w-full border border-neutral-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-black font-mono" />
+                        </div>
+                        {activeUnitScanIdx === idx && (
+                          <div className="col-span-2 relative rounded-2xl overflow-hidden border border-neutral-300 shadow-lg my-2">
+                            <BarcodeScanner
+                              onScan={(scannedCode) => {
+                                updateUnit(idx, 'barcode', scannedCode);
+                                setActiveUnitScanIdx(null);
+                                showToast(`Scanned unit barcode: ${scannedCode}`);
+                              }}
+                            />
+                          </div>
+                        )}
+                        <div>
+                          <label className="text-[11px] font-semibold text-neutral-600 block mb-1">Conversion Factor</label>
+                          <input type="number" min="1" value={unit.conversionFactor} onChange={(e) => updateUnit(idx, 'conversionFactor', e.target.value)} className="w-full border border-neutral-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-black" />
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-semibold text-neutral-600 block mb-1">Price *</label>
+                          <input type="number" step="0.01" min="0" value={unit.price} onChange={(e) => updateUnit(idx, 'price', e.target.value)} placeholder="0.00" className="w-full border border-neutral-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-black" />
+                        </div>
+                      </div>
+                      {formData.units.length > 1 && (
+                        <button type="button" onClick={() => removeUnit(idx)} className="text-xs text-red-500 hover:text-red-700 font-semibold">Remove unit</button>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
 
-              {/* Actions */}
-              <div className="flex gap-3 pt-2">
+              {/* Sticky Footer Actions */}
+              <div className="p-4 sm:px-6 border-t border-neutral-200 bg-white shrink-0 flex gap-3">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 border border-neutral-200 text-sm font-bold py-3 rounded-2xl hover:bg-neutral-100 transition-colors">Cancel</button>
                 <button type="submit" disabled={saving} className="flex-1 bg-black hover:bg-neutral-800 text-white text-sm font-bold py-3 rounded-2xl transition-colors disabled:opacity-50">
                   {saving ? 'Saving...' : editingProduct ? 'Save Changes' : 'Create Product'}
