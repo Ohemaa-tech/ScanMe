@@ -346,7 +346,7 @@ builder.Services.AddAuthorization(options => {
   },
   "ExternalBarcodeApi": {
     "BaseUrl": "https://world.openfoodfacts.org/api/v2/product/",
-    "UserAgent": "ScanMePOS - Windows - Version 1.1"
+    "UserAgent": "SwiftScan POS - Windows - Version 1.1"
   },
   "Cors": {
     "AllowedOrigins": [ "http://localhost:5173" ]

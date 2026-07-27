@@ -104,7 +104,7 @@ The system is built with a **React + Vite** frontend and an **ASP.NET Core 8** R
 ## Project Structure
 
 ```
-ScanMe/
+SwiftScan/
 ├── src/                          ← React frontend source
 │   ├── api/                      ← Axios API modules
 │   ├── components/               ← Shared UI components
@@ -278,4 +278,4 @@ This project is currently in active development. If you'd like to contribute:
 
 ---
 
-*Built with ❤️ — ScanMe POS System v1.1 | July 2026*
+*Built with ❤️ — SwiftScan POS System v1.1 | July 2026*
