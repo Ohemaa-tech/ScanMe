@@ -3,8 +3,16 @@ import { useBarcode } from '../hooks/useBarcode';
 import { CameraOff, RefreshCw, ScanLine, Search, Keyboard, Maximize2, Minimize2 } from 'lucide-react';
 
 export default function BarcodeScanner({ onScan, onError }) {
+  const [lastScannedCode, setLastScannedCode] = useState(null);
+
+  const handleScanSuccess = (code) => {
+    stopScan();
+    setLastScannedCode(code);
+    if (onScan) onScan(code);
+  };
+
   const { videoRef, isScanning, hasCameraPermission, startScan, stopScan } = useBarcode(
-    onScan,
+    handleScanSuccess,
     onError
   );
   const [manualInput, setManualInput] = useState('');
@@ -44,9 +52,11 @@ export default function BarcodeScanner({ onScan, onError }) {
         {/* Live Camera Video Layer */}
         <video
           ref={videoRef}
-          className="absolute inset-0 w-full h-full object-cover z-0"
+          className="absolute inset-0 w-full h-full object-cover z-0 bg-neutral-900"
+          autoPlay
           playsInline
           muted
+          onCanPlay={(e) => e.target.play()}
         />
 
         {/* Top Controls Overlay Row */}
@@ -87,10 +97,16 @@ export default function BarcodeScanner({ onScan, onError }) {
               <div className="absolute bottom-0 right-0 w-4 h-4 border-b-4 border-r-4 border-white rounded-br-sm" />
             </div>
 
-            <p className="mt-4 text-xs font-medium text-white bg-black/80 backdrop-blur-md px-3.5 py-1 rounded-full border border-neutral-700 flex items-center gap-2 shadow-xl">
-              <ScanLine className="w-3.5 h-3.5 text-white animate-pulse" />
-              Center barcode in scanning box
-            </p>
+            {lastScannedCode ? (
+              <div className="mt-4 text-xs font-bold text-emerald-950 bg-emerald-400 backdrop-blur-md px-4 py-1.5 rounded-full border border-emerald-300 flex items-center gap-2 shadow-2xl animate-bounce">
+                <span>✓ Scanned: {lastScannedCode}</span>
+              </div>
+            ) : (
+              <p className="mt-4 text-xs font-medium text-white bg-black/80 backdrop-blur-md px-3.5 py-1 rounded-full border border-neutral-700 flex items-center gap-2 shadow-xl">
+                <ScanLine className="w-3.5 h-3.5 text-white animate-pulse" />
+                Center barcode in scanning box
+              </p>
+            )}
           </div>
         )}
 
