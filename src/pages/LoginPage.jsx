@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Store, Lock, User, LogIn, AlertCircle, ShieldCheck } from 'lucide-react';
+import { Store, Lock, User, LogIn, AlertCircle, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const { login, loading, error } = useAuthStore();
 
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('admin123');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -39,7 +40,7 @@ export default function LoginPage() {
           <div className="inline-flex w-14 h-14 rounded-2xl bg-black border border-slate-800 items-center justify-center text-white shadow-xl mb-2">
             <Store className="w-7 h-7 text-emerald-400" />
           </div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-white">SmartScan POS</h1>
+          <h1 className="text-2xl font-extrabold tracking-tight text-white">SwiftScan POS</h1>
           <p className="text-xs text-slate-400">Sign in to access your retail terminal</p>
         </div>
 
@@ -52,7 +53,7 @@ export default function LoginPage() {
         )}
 
         {/* Login Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} autoComplete="off" className="space-y-4">
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-slate-300">Username</label>
             <div className="relative">
@@ -60,6 +61,7 @@ export default function LoginPage() {
               <input
                 type="text"
                 required
+                autoComplete="off"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Enter username (e.g. admin)"
@@ -73,15 +75,26 @@ export default function LoginPage() {
             <div className="relative">
               <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
+                autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter password"
-                className="w-full bg-slate-950 border border-slate-800 text-white text-xs rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all placeholder:text-slate-600"
+                className="w-full bg-slate-950 border border-slate-800 text-white text-xs rounded-xl pl-10 pr-10 py-3 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all placeholder:text-slate-600"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors focus:outline-none"
+                title={showPassword ? 'Hide Password' : 'Show Password'}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
           </div>
+
+
 
           <button
             type="submit"

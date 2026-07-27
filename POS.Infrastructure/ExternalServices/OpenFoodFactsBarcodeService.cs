@@ -9,13 +9,16 @@ namespace POS.Infrastructure.ExternalServices
     public class OpenFoodFactsBarcodeService : IExternalBarcodeService
     {
         private readonly HttpClient _httpClient;
+        private readonly IConfiguration _configuration;
 
-        public OpenFoodFactsBarcodeService(HttpClient httpClient)
+        public OpenFoodFactsBarcodeService(HttpClient httpClient, IConfiguration configuration)
         {
             _httpClient = httpClient;
+            _configuration = configuration;
             if (!_httpClient.DefaultRequestHeaders.Contains("User-Agent"))
             {
-                _httpClient.DefaultRequestHeaders.Add("User-Agent", "ScanMePOS - Windows - Version 1.1");
+                var userAgent = _configuration["ExternalBarcodeApi:UserAgent"] ?? "SwiftScan POS - Windows - Version 1.1";
+                _httpClient.DefaultRequestHeaders.Add("User-Agent", userAgent);
             }
         }
 

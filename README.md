@@ -1,6 +1,6 @@
-# 🛒 ScanMe — Barcode-Powered Point of Sale System
+# 🛒 SwiftScan — Barcode-Powered Point of Sale System
 
-> A full-stack POS system for small retail shops with automated barcode scanning, dual-unit inventory tracking, and role-based access control.
+> A full-stack POS system for small retail shops with automated barcode scanning, AI product vision, dual-unit inventory tracking, and role-based access control.
 
 ---
 
@@ -23,7 +23,7 @@
 
 ## Overview
 
-**ScanMe** is a barcode-powered Point of Sale (POS) system designed for small retail shops. It enables:
+**SwiftScan** is a barcode-powered Point of Sale (POS) system designed for small retail shops. It enables:
 
 - **Shop Owners** to manage their product catalog via barcode scanning with automated product data lookup (name, brand, category, image), track inventory in bulk and single units, restock stock, manage worker accounts, and view business analytics.
 - **Workers/Cashiers** to scan product barcodes at checkout, process sales with dual-unit (bulk carton vs. single piece) support, and view low-stock alerts.

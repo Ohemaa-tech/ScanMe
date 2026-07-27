@@ -36,7 +36,7 @@ export default function Navbar() {
             <Store className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="font-bold text-base text-white tracking-tight leading-none">SmartScan POS</h1>
+            <h1 className="font-bold text-base text-white tracking-tight leading-none">SwiftScan POS</h1>
             <span className="text-[10px] text-neutral-400 font-medium tracking-wider uppercase">Retail Terminal v1.0</span>
           </div>
         </div>
@@ -85,8 +85,8 @@ export default function Navbar() {
       </aside>
 
       {/* MOBILE BOTTOM NAVIGATION BAR (lg:hidden) */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 z-40 text-slate-400 px-2 py-1.5 flex items-center justify-around shadow-2xl">
-        {NAV_ITEMS.slice(0, 5).map((item) => {
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 z-40 text-slate-400 px-3 py-1.5 flex items-center gap-2 overflow-x-auto scrollbar-none shadow-2xl">
+        {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
           const isActive = location.pathname === item.path;
           return (
@@ -94,8 +94,8 @@ export default function Navbar() {
               key={item.path}
               to={item.path}
               className={({ isActive }) =>
-                `flex flex-col items-center gap-1 py-1.5 px-3 rounded-xl text-[11px] font-medium transition-all relative ${
-                  isActive ? 'text-white font-bold' : 'hover:text-slate-200'
+                `flex flex-col items-center gap-1 py-1.5 px-3 rounded-xl text-[11px] font-medium transition-all shrink-0 relative ${
+                  isActive ? 'text-white font-bold bg-slate-800' : 'hover:text-slate-200'
                 }`
               }
             >
