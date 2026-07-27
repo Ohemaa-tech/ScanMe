@@ -62,10 +62,16 @@ namespace POS.Infrastructure.Repositories
             var clean = barcode?.Trim().ToLower();
             if (string.IsNullOrEmpty(clean)) return null;
 
+            var cleanShift = clean.Replace("!", "1").Replace("@", "2").Replace("#", "3").Replace("$", "4").Replace("%", "5").Replace("^", "6").Replace("&", "7").Replace("*", "8").Replace("(", "9").Replace(")", "0");
+            var cleanShiftAlt = clean.Replace("!", "5");
+
             return await _context.ProductUnits
                 .Include(pu => pu.Product)
                     .ThenInclude(p => p!.Inventory)
-                .FirstOrDefaultAsync(pu => pu.Barcode.Trim().ToLower() == clean && pu.Product!.IsActive);
+                .FirstOrDefaultAsync(pu => pu.Product != null && pu.Product.IsActive &&
+                    (pu.Barcode.Trim().ToLower() == clean ||
+                     pu.Barcode.Trim().ToLower() == cleanShift ||
+                     pu.Barcode.Trim().ToLower() == cleanShiftAlt));
         }
 
         public async Task<ProductUnit?> GetProductUnitByIdAsync(int unitId)
@@ -95,11 +101,15 @@ namespace POS.Infrastructure.Repositories
 
         public async Task DeleteProductAsync(int id)
         {
-            var product = await _context.Products.FindAsync(id);
+            var product = await _context.Products.Include(p => p.Units).FirstOrDefaultAsync(p => p.Id == id);
             if (product != null)
             {
                 product.IsActive = false;
                 product.UpdatedAt = DateTime.UtcNow;
+                if (product.Units != null && product.Units.Any())
+                {
+                    _context.ProductUnits.RemoveRange(product.Units);
+                }
                 await _context.SaveChangesAsync();
             }
         }
@@ -109,7 +119,9 @@ namespace POS.Infrastructure.Repositories
             var clean = barcode?.Trim().ToLower();
             if (string.IsNullOrEmpty(clean)) return false;
 
-            return await _context.ProductUnits.AnyAsync(pu => pu.Barcode.Trim().ToLower() == clean);
+            return await _context.ProductUnits
+                .Include(pu => pu.Product)
+                .AnyAsync(pu => pu.Barcode.Trim().ToLower() == clean && pu.Product != null && pu.Product.IsActive);
         }
     }
 }

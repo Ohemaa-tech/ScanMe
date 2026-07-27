@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useCart from '../hooks/useCart';
 import CartItem from '../components/CartItem';
@@ -7,17 +7,19 @@ import { formatCurrency } from '../utils/formatCurrency';
 import {
   ShoppingCart, Trash2, CheckCircle2,
   CreditCard, Banknote, Smartphone, Scan,
-  AlertTriangle, ArrowLeft,
+  AlertTriangle, ArrowLeft, Printer, Download,
 } from 'lucide-react';
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
   const { items, updateQty, removeItem, clearCart, totalAmount, totalItemCount } = useCart();
+  const receiptRef = useRef(null);
 
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [notes, setNotes] = useState('');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [lastSale, setLastSale] = useState(null);
+  const [receiptItems, setReceiptItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState(null);
 
@@ -30,6 +32,14 @@ export default function CheckoutPage() {
     if (items.length === 0) return;
     setLoading(true);
     setApiError(null);
+    // Capture cart snapshot for receipt before clearing
+    const cartSnapshot = items.map((item) => ({
+      name: item.productName,
+      unitName: item.unitName,
+      quantity: item.quantity,
+      price: item.price,
+      lineTotal: item.price * item.quantity,
+    }));
     try {
       const payload = {
         items: items.map((item) => ({
@@ -41,6 +51,7 @@ export default function CheckoutPage() {
       };
       const sale = await salesApi.completeSale(payload);
       setLastSale(sale);
+      setReceiptItems(cartSnapshot);
       setShowSuccessModal(true);
     } catch (err) {
       const detail =
@@ -60,11 +71,37 @@ export default function CheckoutPage() {
     navigate('/scan');
   };
 
+  const handlePrint = () => {
+    const receiptHtml = receiptRef.current?.innerHTML;
+    if (!receiptHtml) return;
+    const win = window.open('', '_blank', 'width=400,height=700');
+    win.document.write(`
+      <html><head><title>SwiftScan Receipt</title>
+      <style>
+        body { font-family: 'Courier New', monospace; font-size: 12px; margin: 0; padding: 16px; color: #000; }
+        .line { border-top: 1px dashed #999; margin: 8px 0; }
+        .row { display: flex; justify-content: space-between; margin: 4px 0; }
+        .bold { font-weight: bold; }
+        .center { text-align: center; }
+        .logo { font-size: 18px; font-weight: bold; }
+        @media print { body { margin: 0; } }
+      </style></head>
+      <body>${receiptHtml}</body></html>
+    `);
+    win.document.close();
+    win.focus();
+    setTimeout(() => { win.print(); win.close(); }, 300);
+  };
+
   const PAYMENT_OPTIONS = [
     { value: 'Cash', label: 'Cash', icon: Banknote },
     { value: 'Card', label: 'Card', icon: CreditCard },
     { value: 'Mobile Money', label: 'Mobile Money', icon: Smartphone },
   ];
+
+  const now = new Date();
+  const receiptDate = now.toLocaleDateString('en-GH', { day: '2-digit', month: 'short', year: 'numeric' });
+  const receiptTime = now.toLocaleTimeString('en-GH', { hour: '2-digit', minute: '2-digit' });
 
   return (
     <div className="space-y-6 pb-28 text-slate-900">
@@ -205,37 +242,69 @@ export default function CheckoutPage() {
         </div>
       </div>
 
-      {/* Success Modal */}
+      {/* Receipt / Success Modal */}
       {showSuccessModal && lastSale && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl space-y-5 text-center">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-              <CheckCircle2 className="w-9 h-9 text-green-600" />
-            </div>
-            <div>
-              <h3 className="text-xl font-extrabold text-slate-900">Sale Complete!</h3>
-              <p className="text-xs text-slate-500 mt-1">Transaction #{lastSale.id} recorded</p>
-            </div>
-            <div className="bg-neutral-50 rounded-2xl p-4 text-left space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-500">Total Charged</span>
-                <span className="font-extrabold font-mono text-black">{formatCurrency(lastSale.totalAmount)}</span>
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-sm shadow-2xl flex flex-col max-h-[90dvh]">
+            {/* Modal Header */}
+            <div className="px-6 pt-5 pb-3 border-b border-neutral-200 shrink-0 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                </div>
+                <h3 className="text-base font-extrabold text-slate-900">Sale Complete!</h3>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-500">Payment</span>
-                <span className="font-semibold">{lastSale.paymentMethod}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-500">Items</span>
-                <span className="font-semibold">{lastSale.items?.length || 0} line items</span>
+              <span className="text-xs text-slate-400">#{lastSale.id}</span>
+            </div>
+
+            {/* Scrollable Receipt */}
+            <div className="flex-1 overflow-y-auto px-4 py-4">
+              {/* Printable Receipt Content */}
+              <div ref={receiptRef} className="font-mono text-xs text-black space-y-3">
+                <div className="center text-center">
+                  <div className="logo text-lg font-black">⚡ SwiftScan POS</div>
+                  <div>{receiptDate} · {receiptTime}</div>
+                  <div>Receipt #{lastSale.id}</div>
+                </div>
+                <div className="line border-t border-dashed border-neutral-300 my-2" />
+
+                {receiptItems.map((item, i) => (
+                  <div key={i} className="space-y-0.5">
+                    <div className="font-bold">{item.name}</div>
+                    <div className="row flex justify-between">
+                      <span className="text-neutral-500">{item.unitName} × {item.quantity}</span>
+                      <span>{formatCurrency(item.lineTotal)}</span>
+                    </div>
+                  </div>
+                ))}
+
+                <div className="line border-t border-dashed border-neutral-300 my-2" />
+                <div className="row flex justify-between"><span>Subtotal</span><span>{formatCurrency(lastSale.totalAmount / 1.05)}</span></div>
+                <div className="row flex justify-between"><span>Tax (5%)</span><span>{formatCurrency(lastSale.totalAmount - lastSale.totalAmount / 1.05)}</span></div>
+                <div className="line border-t border-dashed border-neutral-300 my-2" />
+                <div className="row flex justify-between bold font-bold text-sm"><span>TOTAL</span><span>{formatCurrency(lastSale.totalAmount)}</span></div>
+                <div className="row flex justify-between"><span>Payment</span><span>{lastSale.paymentMethod}</span></div>
+                <div className="line border-t border-dashed border-neutral-300 my-2" />
+                <div className="center text-center text-neutral-400 text-[10px]">Thank you for shopping with us!<br />Powered by SwiftScan POS</div>
               </div>
             </div>
-            <button
-              onClick={handleFinish}
-              className="w-full bg-black hover:bg-neutral-800 text-white font-extrabold py-3.5 px-6 rounded-2xl text-sm transition-all shadow-md"
-            >
-              New Sale
-            </button>
+
+            {/* Actions */}
+            <div className="px-4 pb-5 pt-3 border-t border-neutral-200 shrink-0 space-y-2">
+              <button
+                onClick={handlePrint}
+                className="w-full flex items-center justify-center gap-2 border border-neutral-200 text-sm font-bold py-3 rounded-2xl hover:bg-neutral-50 transition-colors"
+              >
+                <Printer className="w-4 h-4" />
+                Print Receipt
+              </button>
+              <button
+                onClick={handleFinish}
+                className="w-full bg-black hover:bg-neutral-800 text-white text-sm font-extrabold py-3 rounded-2xl transition-colors shadow-md"
+              >
+                New Sale
+              </button>
+            </div>
           </div>
         </div>
       )}

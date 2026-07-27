@@ -23,6 +23,7 @@ export default function ScanPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [recentScans, setRecentScans] = useState([]);
+  const [notFoundBarcode, setNotFoundBarcode] = useState(null);
   const lastScanBarcodeRef = React.useRef({ code: '', time: 0 });
 
   const showToast = (msg, type = 'success') => {
@@ -40,6 +41,7 @@ export default function ScanPage() {
 
     setLoading(true);
     setError(null);
+    setNotFoundBarcode(null);
     try {
       const unit = await productsApi.getByBarcode(barcode);
       const product = await productsApi.getById(unit.productId);
@@ -54,9 +56,10 @@ export default function ScanPage() {
       ]);
       showToast(`Scanned: ${product.name} (${unit.unitName})`);
     } catch (err) {
-      const detail = err?.response?.data?.detail || 'Barcode not found in catalog';
+      const detail = err?.response?.data?.detail || `Barcode '${barcode}' not found in catalog`;
       setError(detail);
-      showToast(detail, 'error');
+      setNotFoundBarcode(barcode);
+      showToast(`Barcode ${barcode} not in catalog`, 'error');
     } finally {
       setLoading(false);
     }
@@ -103,10 +106,30 @@ export default function ScanPage() {
           )}
 
           {!loading && !scannedProduct && (
-            <div className="text-center py-10 text-neutral-400">
-              <Package className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              <p className="text-sm font-medium">Scan a barcode to get started</p>
-              <p className="text-xs mt-1">Product details will appear here</p>
+            <div className="text-center py-10 text-neutral-400 space-y-3">
+              {notFoundBarcode ? (
+                <div className="space-y-3">
+                  <div className="w-12 h-12 bg-amber-50 border border-amber-200 rounded-full flex items-center justify-center mx-auto text-amber-600">
+                    <AlertTriangle className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-slate-900">Barcode Not in Catalog</p>
+                    <p className="text-xs text-neutral-500 font-mono mt-1">{notFoundBarcode}</p>
+                  </div>
+                  <button
+                    onClick={() => navigate(`/products?search=${encodeURIComponent(notFoundBarcode)}`)}
+                    className="inline-flex items-center gap-2 bg-black hover:bg-neutral-800 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-md transition-all"
+                  >
+                    + Register Product in Catalog
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <Package className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                  <p className="text-sm font-medium">Scan a barcode to get started</p>
+                  <p className="text-xs mt-1">Product details will appear here</p>
+                </>
+              )}
             </div>
           )}
 

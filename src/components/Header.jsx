@@ -14,7 +14,7 @@ export default function Header({ searchInput, setSearchInput }) {
   };
 
   return (
-    <header className="h-14 bg-white text-slate-900 border-b border-neutral-200 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-40 shadow-xs">
+    <header className="h-14 bg-white text-slate-900 border-b border-neutral-200 px-4 sm:px-6 flex items-center justify-between fixed top-0 left-0 right-0 z-40 shadow-sm" style={{transform:'translateZ(0)',willChange:'transform'}}>
       {/* Left: Brand Logo & Title */}
       <div className="flex items-center gap-2.5">
         <img src="/logo.png" alt="SwiftScan" className="w-8 h-8 rounded-lg object-cover shadow-sm border border-neutral-200" />

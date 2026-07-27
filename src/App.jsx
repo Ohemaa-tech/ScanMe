@@ -17,7 +17,7 @@ function MainLayout({ globalSearch, setGlobalSearch }) {
   return (
     <div className="min-h-screen bg-neutral-50 flex flex-col font-sans text-slate-900">
       <Header searchInput={globalSearch} setSearchInput={setGlobalSearch} />
-      <div className="flex flex-1 relative">
+      <div className="flex flex-1 relative pt-14">
         <Sidebar />
         <main className="flex-1 p-4 sm:p-6 max-w-7xl mx-auto w-full mb-16 lg:mb-0">
           <Routes>

@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
 using POS.Core.Interfaces;
+using Microsoft.Extensions.Configuration;
 
 namespace POS.Infrastructure.ExternalServices
 {

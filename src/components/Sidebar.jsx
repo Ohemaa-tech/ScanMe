@@ -119,7 +119,7 @@ export default function Sidebar() {
       </aside>
 
       {/* MOBILE BOTTOM NAV */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-neutral-200 z-50 text-neutral-600 px-3 py-1.5 flex items-center gap-2 overflow-x-auto scrollbar-none shadow-2xl">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-neutral-200 z-50 text-neutral-600 px-3 py-1.5 flex items-center gap-2 overflow-x-auto scrollbar-none shadow-2xl" style={{transform:'translateZ(0)',willChange:'transform',paddingBottom:'env(safe-area-inset-bottom)' }}>
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
           return (

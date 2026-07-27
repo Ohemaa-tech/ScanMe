@@ -17,6 +17,27 @@ const EMPTY_FORM = {
   units: [{ unitName: 'Single', barcode: '', conversionFactor: 1, price: '', isDefault: true }],
 };
 
+const PRODUCT_CATEGORIES = [
+  'Beverages',
+  'Foodstuff',
+  'Detergents',
+  'Toiletries',
+  'Cosmetics',
+  'Stationery',
+];
+
+const matchCategory = (raw = '') => {
+  if (!raw) return '';
+  const lower = raw.toLowerCase();
+  if (/bever|drink|water|juice|soda|wine|beer/.test(lower)) return 'Beverages';
+  if (/food|snack|grain|cereal|rice|flour|spice|sauce|oil|sugar|salt/.test(lower)) return 'Foodstuff';
+  if (/deterg|clean|wash|bleach|disinfect|soap powder|dishwash/.test(lower)) return 'Detergents';
+  if (/toilet|bath|hygiene|tissue|sanit|pad|tampon|diapers|nappy/.test(lower)) return 'Toiletries';
+  if (/cosmet|beauty|makeup|lipstick|perfume|cream|lotion|skincare|hair|nail/.test(lower)) return 'Cosmetics';
+  if (/station|pen|pencil|paper|book|notebook|office|print|ink/.test(lower)) return 'Stationery';
+  return raw; // keep AI's raw suggestion as custom value
+};
+
 export default function ProductsPage({ globalSearch = '' }) {
   const { isOwner } = useAuth();
 
@@ -109,7 +130,7 @@ export default function ProductsPage({ globalSearch = '' }) {
       ...prev,
       name: data.productName || prev.name,
       brand: data.brand || prev.brand,
-      category: data.category || prev.category,
+      category: matchCategory(data.category) || prev.category,
       imageUrl: data.imageUrl || prev.imageUrl,
       units: prev.units.map((u, i) =>
         i === 0 ? { ...u, barcode: data.barcode, price: data.suggestedPrice || u.price } : u
@@ -400,8 +421,8 @@ export default function ProductsPage({ globalSearch = '' }) {
 
       {/* Create / Edit Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4">
-          <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center sm:p-4">
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-2xl shadow-2xl flex flex-col h-[92dvh] sm:max-h-[92vh] overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-neutral-200 shrink-0">
               <h3 className="text-base font-extrabold text-slate-900">
@@ -434,24 +455,55 @@ export default function ProductsPage({ globalSearch = '' }) {
                   {[
                     { label: 'Product Name *', key: 'name', required: true, full: true },
                     { label: 'Base Unit Name', key: 'baseUnitName', placeholder: 'Piece, Bottle, Kg...' },
-                    { label: 'Category', key: 'category' },
                     { label: 'Brand', key: 'brand' },
                     { label: 'Image URL', key: 'imageUrl', full: true },
-                    { label: 'Initial Base Stock', key: 'initialBaseStock', type: 'number' },
-                    { label: 'Low Stock Threshold', key: 'lowStockThreshold', type: 'number' },
-                  ].map(({ label, key, required, full, type = 'text', placeholder }) => (
+                    { label: 'Initial Base Stock', key: 'initialBaseStock', type: 'number', inputMode: 'numeric' },
+                    { label: 'Low Stock Threshold', key: 'lowStockThreshold', type: 'number', inputMode: 'numeric' },
+                  ].map(({ label, key, required, full, type = 'text', inputMode, placeholder }) => (
                     <div key={key} className={full ? 'sm:col-span-2' : ''}>
                       <label className="text-xs font-semibold text-neutral-700 block mb-1">{label}</label>
                       <input
                         type={type}
+                        inputMode={inputMode}
                         required={required}
                         value={formData[key]}
                         onChange={(e) => setFormData((prev) => ({ ...prev, [key]: e.target.value }))}
                         placeholder={placeholder}
-                        className="w-full border border-neutral-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-black"
+                        className="w-full border border-neutral-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-black bg-white"
                       />
                     </div>
                   ))}
+
+                  {/* Category Dropdown */}
+                  <div>
+                    <label className="text-xs font-semibold text-neutral-700 block mb-1">Category</label>
+                    <select
+                      value={PRODUCT_CATEGORIES.includes(formData.category) ? formData.category : (formData.category ? '__custom__' : '')}
+                      onChange={(e) => {
+                        if (e.target.value === '__custom__') return;
+                        setFormData((prev) => ({ ...prev, category: e.target.value }));
+                      }}
+                      className="w-full border border-neutral-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-black bg-white"
+                    >
+                      <option value="">Select category...</option>
+                      {PRODUCT_CATEGORIES.map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                      <option value="__custom__">Other (type below)</option>
+                    </select>
+                    {(!PRODUCT_CATEGORIES.includes(formData.category) && formData.category !== '') && (
+                      <input
+                        type="text"
+                        value={formData.category}
+                        onChange={(e) => setFormData((prev) => ({ ...prev, category: e.target.value }))}
+                        placeholder="Custom category..."
+                        className="mt-1.5 w-full border border-neutral-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-black"
+                      />
+                    )}
+                    {!PRODUCT_CATEGORIES.includes(formData.category) && formData.category === '' && (
+                      <p className="text-[10px] text-neutral-400 mt-1">Select 'Other' to type a custom category</p>
+                    )}
+                  </div>
                 </div>
 
                 {/* Packaging Units */}
@@ -494,11 +546,20 @@ export default function ProductsPage({ globalSearch = '' }) {
                         )}
                         <div>
                           <label className="text-[11px] font-semibold text-neutral-600 block mb-1">Conversion Factor</label>
-                          <input type="number" min="1" value={unit.conversionFactor} onChange={(e) => updateUnit(idx, 'conversionFactor', e.target.value)} className="w-full border border-neutral-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-black" />
+                          <input type="number" inputMode="numeric" min="1" value={unit.conversionFactor} onChange={(e) => updateUnit(idx, 'conversionFactor', e.target.value)} className="w-full border border-neutral-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-black bg-white" />
                         </div>
                         <div>
                           <label className="text-[11px] font-semibold text-neutral-600 block mb-1">Price *</label>
-                          <input type="number" step="0.01" min="0" value={unit.price} onChange={(e) => updateUnit(idx, 'price', e.target.value)} placeholder="0.00" className="w-full border border-neutral-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-black" />
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            step="any"
+                            min="0"
+                            value={unit.price}
+                            onChange={(e) => updateUnit(idx, 'price', e.target.value)}
+                            placeholder="0.00"
+                            className="w-full border border-neutral-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-black bg-white font-semibold text-slate-900"
+                          />
                         </div>
                       </div>
                       {formData.units.length > 1 && (
